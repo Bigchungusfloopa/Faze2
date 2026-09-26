@@ -1,61 +1,53 @@
-# Modulus
+# Faze
 
-**Modulus** is a premium, collaborative learning platform designed specifically for students. It combines task management, file storage, real-time communication, and community building into a single, cohesive interface.
+Document intelligence: upload documents, ask questions, and get answers grounded in those documents, with citations to the source file, page and section. When the documents don't answer a question, Faze says so instead of guessing.
 
-##  Live Demo
-[View Live Deployment](https://modulus-lime.vercel.app)
+The interface is branded **Birbal**.
 
-##  Core Features
+## What it does
 
-- **📂 Vault**: A robust file management system for organizing study materials, powered by Cloudflare R2.
-- **💬 Communities**: Discover, join, and create study groups with fellow students.
-- **✅ Tasks**: Integrated task management with personal and collaborative workflows.
-- **🎙️ Circles**: Real-time voice and video study rooms powered by LiveKit for seamless collaboration.
-- **🧵 Threads**: Structured discussions and knowledge sharing within communities.
-- **⚡ Focus Mode**: Dedicated tools to help you stay productive and minimize distractions.
+- **Many formats**: PDF (digital or scanned), images, Word, PowerPoint, Excel, CSV/TSV, text, Markdown and JSON.
+- **Automatic routing and classification**: each file is classified (research paper, lecture slides, table dataset, handwritten notes, …) and sent down the pipeline that suits it. Scans and images go through Gemini vision OCR; Office and tabular files are parsed directly.
+- **Hybrid retrieval**: vector search (pgvector) and keyword search combined with reciprocal rank fusion, then reranked.
+- **Grounded answers**: every claim cites its source. An evidence gate refuses to answer when nothing relevant is found, and conflicting sources are shown side by side.
+- **Conversations**: follow-up questions keep context; chats are saved and can be reopened with their citations.
+- **Communities**: shared workspaces joined by name + password, with Admin / Editor / Viewer roles. Answers in a community come only from that community's files.
 
-##  Technology Stack
+## Stack
 
-- **Framework**: [Next.js 16](https://nextjs.org) (App Router)
-- **Backend/Auth**: [Supabase](https://supabase.com)
-- **Storage**: Cloudflare R2 (S3-compatible)
-- **Real-time**: [LiveKit](https://livekit.io)
-- **State Management**: [TanStack Query](https://tanstack.com/query) & [Zustand](https://zustand-demo.pmnd.rs)
-- **Animations**: [Framer Motion](https://www.framer.com/motion) & [GSAP](https://gsap.com)
-- **Styling**: Tailwind CSS & Lucide Icons
+Next.js 16 (App Router), Supabase (Postgres + pgvector, Auth, Storage), Gemini (`@google/genai`) for OCR, classification, embeddings and answers.
 
-##  Getting Started
+`doc_agent/` holds the standalone Python version of the document agent. It is not part of the deployed app, and Vercel skips it (`.vercelignore`).
 
-### Prerequisites
+## Setup
 
-- Node.js 18.x or higher
-- A Supabase account
-- A Cloudflare R2 bucket (optional for local dev)
-- A LiveKit Cloud project (optional for local dev)
+1. `npm install`
+2. Create `.env.local`:
 
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Bhavesh-Codes/MODULUS.git
-   cd modulus
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+   SUPABASE_SECRET_KEY=
+   SUPABASE_DB_URL=            # session pooler connection string, for migrations
+   GEMINI_API_KEY=
+   GEMINI_EMBED_MODEL=gemini-embedding-2
+   GEMINI_EMBED_DIM=1536
+   GEMINI_PARSE_MODEL=
+   GEMINI_FAST_MODEL=
+   GEMINI_ANSWER_MODEL=
    ```
 
-2. Install dependencies:
-   ```bash
-   npm install
+3. Apply the migrations in order:
+
+   ```
+   for f in supabase/migrations/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done
    ```
 
-3. Set up your environment variables:
-   Create a `.env` file in the root directory and add your Supabase, LiveKit, and R2 credentials.
+4. Create a private Storage bucket named `faze-files`.
+5. `npm run dev` and open http://localhost:3000.
 
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
+## Deploying on Vercel
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## License
-
-This project is private and owned by [Bhavesh-Codes](https://github.com/Bhavesh-Codes).
+- Add the same environment variables in the Vercel project settings.
+- `vercel.json` pins functions to one region; keep it the same as your Supabase project's region.
+- In Supabase → Authentication → URL Configuration, set the Site URL to your domain and add `https://<your-domain>/api/auth/callback` to the redirect URLs.

@@ -28,6 +28,7 @@ export interface ChatMessage {
   streaming: boolean
   stage: string | null
   subQueries?: string[]
+  attachments?: string[]
 }
 
 /**
@@ -42,8 +43,8 @@ export function useRagChat() {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  const send = useCallback(async (text: string, documentIds?: string[], workspaceId?: string | null) => {
-    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", text, sources: [], grounding: null, streaming: false, stage: null }
+  const send = useCallback(async (text: string, documentIds?: string[], workspaceId?: string | null, attachments?: string[]) => {
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", text, sources: [], grounding: null, streaming: false, stage: null, attachments }
     const asstMsg: ChatMessage = { id: `a-${Date.now()}`, role: "assistant", text: "", sources: [], grounding: null, streaming: true, stage: "starting" }
     setMessages((prev) => [...prev, userMsg, asstMsg])
     setIsStreaming(true)
@@ -141,5 +142,8 @@ export function useRagChat() {
     setMessages(data.messages as ChatMessage[])
   }, [])
 
-  return { messages, isStreaming, send, resetConversation, loadConversation, conversationId }
+  // Messages that live only in this view (e.g. "files added" notes), never sent or persisted.
+  const appendLocal = useCallback((msgs: ChatMessage[]) => setMessages((prev) => [...prev, ...msgs]), [])
+
+  return { messages, isStreaming, send, resetConversation, loadConversation, appendLocal, conversationId }
 }

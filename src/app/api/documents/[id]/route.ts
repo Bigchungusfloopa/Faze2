@@ -27,6 +27,9 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   return NextResponse.json({ data: { ...doc, events: events ?? [] } });
 }
 
+// Visibility and permission come from RLS: documents_select lets any member
+// see a community file, documents_delete lets its uploader or a community
+// Admin remove it. So no owner_id filter here -- that would lock Admins out.
 export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const user = await getAuthUser(supabase);
@@ -38,31 +41,25 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
     .from("documents")
     .select("storage_key")
     .eq("id", id)
-    .eq("owner_id", user.id)
     .maybeSingle();
-
   if (fetchError || !doc) return NextResponse.json({ error: "Document not found." }, { status: 404 });
 
-  // Chunks/messages/citations cascade via FK; the S3 object does not, so it
-  // has to be cleaned up explicitly. If this throws, the DB row is left in
-  // place rather than orphaning the row with no way to retry the object
-  // delete -- delete the object first, the DB row second.
+  // Delete the row first and confirm RLS actually allowed it, THEN the file:
+  // an object removed for a row the caller wasn't allowed to delete would be
+  // unrecoverable data loss.
+  const { data: deleted, error: deleteError } = await supabase.from("documents").delete().eq("id", id).select("id");
+  if (deleteError) {
+    console.error("document delete error:", deleteError);
+    return NextResponse.json({ error: "Failed to delete document." }, { status: 500 });
+  }
+  if (!deleted || deleted.length === 0) {
+    return NextResponse.json({ error: "Only the uploader or a community Admin can delete this file." }, { status: 403 });
+  }
+
   try {
     await deleteObject(doc.storage_key);
   } catch (storageError) {
-    console.error("Failed to delete object from storage:", storageError);
-    return NextResponse.json({ error: "Failed to delete the stored file." }, { status: 500 });
-  }
-
-  const { error: deleteError } = await supabase
-    .from("documents")
-    .delete()
-    .eq("id", id)
-    .eq("owner_id", user.id);
-
-  if (deleteError) {
-    console.error("document delete error:", deleteError);
-    return NextResponse.json({ error: "Failed to delete document record." }, { status: 500 });
+    console.error("Document row deleted but stored file removal failed:", doc.storage_key, storageError);
   }
 
   return NextResponse.json({ success: true });

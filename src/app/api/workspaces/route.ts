@@ -1,23 +1,17 @@
 import { NextResponse } from "next/server";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 
-/** Workspaces the caller is a member of. RLS (workspaces_select) already scopes this to membership. */
+/** Communities the caller belongs to, with role, counts and member initials for the cards. */
 export async function GET() {
   const supabase = await createClient();
   const user = await getAuthUser(supabase);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase
-    .from("workspace_members")
-    .select("role, joined_at, workspaces(id, name, created_at)")
-    .eq("user_id", user.id)
-    .order("joined_at", { ascending: false });
-
+  const { data, error } = await supabase.rpc("my_workspaces");
   if (error) {
     console.error("workspaces list error:", error);
-    return NextResponse.json({ error: "Failed to list workspaces." }, { status: 500 });
+    return NextResponse.json({ error: "Failed to list communities." }, { status: 500 });
   }
-
   return NextResponse.json({ data });
 }
 
@@ -30,17 +24,22 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const name = (body?.name as string | undefined)?.trim();
   const password = body?.password as string | undefined;
+  const themeIdx = Number.isInteger(body?.themeIdx) ? (body.themeIdx as number) : 0;
 
   if (!name || !password) {
     return NextResponse.json({ error: "name and password are required." }, { status: 400 });
   }
 
-  const { data, error } = await supabase.rpc("create_workspace", { p_name: name, p_password: password });
+  const { data, error } = await supabase.rpc("create_workspace", {
+    p_name: name,
+    p_password: password,
+    p_theme_idx: themeIdx,
+  });
 
   if (error) {
     // Postgres reports the unique-name collision as a generic duplicate-key
     // error; give the caller something they can actually act on.
-    const message = error.code === "23505" ? `A workspace named "${name}" already exists.` : error.message;
+    const message = error.code === "23505" ? `A community named "${name}" already exists.` : error.message;
     return NextResponse.json({ error: message }, { status: 400 });
   }
 

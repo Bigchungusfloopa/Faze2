@@ -1,64 +1,208 @@
-import Link from "next/link"
-import { redirect } from "next/navigation"
-import { FileText } from "lucide-react"
-import { createClient, getAuthUser } from "@/lib/supabase/server"
+"use client";
 
-const VIDEO_URL =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4"
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { FileText } from 'lucide-react';
+import LogoLoop from '@/components/birbal/LogoLoop';
 
-export default async function HomePage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
-  if (user) redirect("/research")
+const FILE_TYPES = [
+  { node: <span style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>PDF</span> },
+  { node: <span style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>DOCX</span> },
+  { node: <span style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>CSV</span> },
+  { node: <span style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>XLSX</span> },
+  { node: <span style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>PPTX</span> },
+  { node: <span style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>TXT</span> },
+  { node: <span style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>MD</span> },
+  { node: <span style={{ fontWeight: 700, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>JSON</span> },
+];
+
+export default function LandingPage() {
+  const router = useRouter();
+  const navigate = (path: string) => router.push(path);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    // Add class to body to enforce black background and overflow hidden
+    document.body.classList.add('landing-active');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const counters = document.querySelectorAll('.stat-val');
+            counters.forEach((counter, i) => {
+              const targetStr = counter.getAttribute('data-target') || '0';
+              const target = parseFloat(targetStr);
+              const suffix = counter.getAttribute('data-suffix') || '';
+              const prefix = counter.getAttribute('data-prefix') || '';
+              const decimals = parseInt(counter.getAttribute('data-decimals') || '0', 10);
+              const duration = 1500 + i * 80;
+              const delay = 480 + i * 90;
+
+              let startTimestamp: number | null = null;
+              
+              setTimeout(() => {
+                const step = (timestamp: number) => {
+                  if (!startTimestamp) startTimestamp = timestamp;
+                  const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                  // easeOutCubic
+                  const easeProgress = 1 - Math.pow(1 - progress, 3);
+                  const current = (easeProgress * target).toFixed(decimals);
+                  
+                  if (counter) {
+                    counter.innerHTML = `${prefix}${current}${suffix}`;
+                  }
+
+                  if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                  } else if (counter) {
+                    counter.innerHTML = `${prefix}${target.toFixed(decimals)}${suffix}`;
+                  }
+                };
+                window.requestAnimationFrame(step);
+              }, delay);
+            });
+            observer.disconnect();
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
+
+    const statsSection = document.querySelector('.stats-footer');
+    if (statsSection) {
+      observer.observe(statsSection);
+    }
+
+    return () => {
+      document.body.classList.remove('landing-active');
+      observer.disconnect();
+    };
+  }, []);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
 
   return (
-    <div className="page-shell h-dvh items-center px-4 py-6 text-white">
-      <video className="page-video-bg" autoPlay muted loop playsInline>
-        <source src={VIDEO_URL} type="video/mp4" />
+    <div className={`landing-page ${isMenuOpen ? 'menu-open' : ''}`}>
+      <video className="bg-video" autoPlay muted loop playsInline>
+        <source
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4"
+          type="video/mp4"
+        />
       </video>
-      <div className="page-video-scrim" />
 
-      <header className="flex w-full max-w-3xl items-center justify-center gap-4">
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-black">
-          <FileText size={20} />
-        </div>
-        <nav className="flex h-11 flex-1 max-w-md items-center justify-around rounded-full bg-white px-2 text-sm font-medium text-neutral-800">
-          <Link href="/">Home</Link>
-          <Link href="/research" className="opacity-60 hover:opacity-100">Chat</Link>
+      {/* Desktop Header */}
+      <header className="landing-header">
+        <a href="#" className="landing-logo">
+          <FileText size={24} />
+        </a>
+        <nav className="nav-pill">
+          <Link href="/" className="nav-link active">Home</Link>
+          <Link href="/workspace" className="nav-link">Workspace</Link>
+          <Link href="/chat" className="nav-link">Chat</Link>
         </nav>
-        <Link href="/login" className="flex h-11 items-center rounded-full bg-neutral-800 px-5 text-sm font-medium text-neutral-200 hover:bg-neutral-700">
+        <button onClick={() => navigate('/login')} className="btn-signin" style={{ border: 'none', cursor: 'pointer' }}>
           Sign in
-        </Link>
+        </button>
       </header>
 
-      <main className="flex flex-1 flex-col items-center justify-center text-center">
-        <h1 className="font-heading text-5xl font-semibold tracking-tight sm:text-7xl anim" style={{ ["--d" as string]: "0.1s" }}>
-          Document<br />Intelligence
+      {/* Mobile Header */}
+      <header className="mobile-header">
+        <a href="#" className="mobile-logo">
+          <FileText size={24} />
+        </a>
+        <button className="burger" onClick={toggleMenu} aria-expanded={isMenuOpen}>
+          <div className="bar"></div>
+          <div className="bar"></div>
+          <div className="bar"></div>
+        </button>
+      </header>
+
+      {/* Mobile Menu Overlay */}
+      <div className="mobile-overlay" onClick={toggleMenu}></div>
+      <div className="mobile-sheet">
+        <Link href="/" className="mobile-link active" onClick={toggleMenu}>Home</Link>
+        <Link href="/workspace" className="mobile-link" onClick={toggleMenu}>Workspace</Link>
+        <Link href="/chat" className="mobile-link" onClick={toggleMenu}>Chat</Link>
+        <button onClick={() => { toggleMenu(); navigate('/login'); }} className="mobile-signin" style={{ border: 'none', cursor: 'pointer' }}>
+          Sign in
+        </button>
+      </div>
+
+      <main className="hero-section">
+        <div className="trust-row anim" style={{ '--d': '0.05s' } as React.CSSProperties}>
+          <div className="trust-avatar">
+            <div className="trust-inner"><i className="fa-solid fa-file-pdf"></i></div>
+          </div>
+          <div className="trust-avatar">
+            <div className="trust-inner"><i className="fa-solid fa-file-excel"></i></div>
+          </div>
+          <div className="trust-avatar">
+            <div className="trust-inner"><i className="fa-solid fa-file-csv"></i></div>
+          </div>
+        </div>
+
+        <h1 className="headline">
+          <span>Document</span>
+          <span>Intelligence</span>
         </h1>
-        <p className="mt-5 max-w-lg text-base text-neutral-300 anim" style={{ ["--d" as string]: "0.25s" }}>
-          Upload PDFs, scans, tables and images. Ask questions and get answers grounded in your documents, with page-level citations — or a plain &quot;not in your documents.&quot;
+
+        <p className="subhead anim" style={{ '--d': '0.28s' } as React.CSSProperties}>
+          Automated classification and NLP extraction. Extract insights from your documents in seconds.
         </p>
-        <Link
-          href="/research"
-          className="mt-8 rounded-full bg-white px-7 py-3 text-sm font-semibold text-neutral-900 shadow-[0_0_30px_rgba(255,255,255,0.3)] transition hover:-translate-y-0.5 anim"
-          style={{ ["--d" as string]: "0.4s" }}
+
+        <button 
+          onClick={() => navigate('/chat')} 
+          className="cta-btn anim-pulse" 
+          style={{ '--d': '0.4s', border: 'none', cursor: 'pointer' } as React.CSSProperties}
         >
           Get Started
-        </Link>
+        </button>
       </main>
 
-      <footer className="grid w-full max-w-2xl grid-cols-3 gap-4 text-center">
-        {[
-          ["Hybrid", "Vector + keyword search"],
-          ["Cited", "Source, page & section"],
-          ["Grounded", "Abstains when unsure"],
-        ].map(([v, l]) => (
-          <div key={v}>
-            <div className="font-heading text-xl">{v}</div>
-            <div className="text-xs text-neutral-400">{l}</div>
-          </div>
-        ))}
+      <footer className="stats-footer">
+        <div className="stat-box anim" style={{ '--d': '0.58s' } as React.CSSProperties}>
+          <div className="stat-icon">%</div>
+          <div className="stat-val" data-target="99.2" data-suffix="%" data-decimals="1">0.0%</div>
+          <div className="stat-label">OCR Accuracy</div>
+        </div>
+        <div className="stat-box anim" style={{ '--d': '0.66s' } as React.CSSProperties}>
+          <div className="stat-icon">+</div>
+          <div className="stat-val" data-target="20" data-suffix="+" data-decimals="0">0+</div>
+          <div className="stat-label">Document Formats</div>
+        </div>
       </footer>
+
+      <div 
+        className="anim" 
+        style={{ 
+          '--d': '0.75s', 
+          marginTop: 'auto', 
+          marginBottom: '40px', 
+          width: '90%', 
+          maxWidth: '600px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(16px) saturate(180%)',
+          borderRadius: '999px',
+          padding: '16px 32px',
+          overflow: 'hidden',
+          display: 'flex',
+          justifyContent: 'center',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+        } as React.CSSProperties}
+      >
+        <LogoLoop 
+          logos={FILE_TYPES} 
+          speed={30} 
+          gap={50} 
+          fadeOut={false} 
+          style={{ maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)' }}
+        />
+      </div>
     </div>
-  )
+  );
 }

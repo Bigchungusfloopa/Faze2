@@ -50,12 +50,15 @@ export async function POST(request: Request) {
   if (workspaceId) {
     const { data: membership } = await supabase
       .from("workspace_members")
-      .select("workspace_id")
+      .select("role")
       .eq("workspace_id", workspaceId)
       .eq("user_id", user.id)
       .maybeSingle();
     if (!membership) {
-      return NextResponse.json({ error: "You are not a member of that workspace." }, { status: 403 });
+      return NextResponse.json({ error: "You are not a member of that community." }, { status: 403 });
+    }
+    if (membership.role === "viewer") {
+      return NextResponse.json({ error: "Viewers can't upload files to this community." }, { status: 403 });
     }
   }
 

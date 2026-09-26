@@ -58,10 +58,18 @@ export async function updateSession(request: NextRequest) {
     pathname === '/api/auth/signup'
 
   if (!user && !isPublicRoute) {
-    // Unauthenticated users attempting to access the root / or any other 
-    // root/app route are redirected to /login
+    // API callers get a JSON 401 they can handle; pages go to the sign-in screen.
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  if (user && (pathname === '/login' || pathname === '/signup')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/chat'
     return NextResponse.redirect(url)
   }
 
