@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useUploadDocuments, UPLOAD_ACCEPT } from "@/hooks/useUploadDocuments";
 import type { DocumentRow } from "@/types/rag";
+import DocPreview from "@/components/birbal/DocPreview";
 
 const VIDEO_URL =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4";
@@ -84,6 +85,7 @@ export default function WorkspacePage() {
   const [newTheme, setNewTheme] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: communities = [], isLoading } = useQuery({
@@ -372,7 +374,7 @@ export default function WorkspacePage() {
                       const canDelete = isAdmin || f.owner_id === me;
                       const statusText = f.status === "ready" ? null : f.status === "failed" ? "Failed to read" : `Reading… ${f.progress_pct ?? 0}%`;
                       return (
-                        <div key={f.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, background: "rgba(0,0,0,0.18)", border: `1px solid ${theme.border}` }}>
+                        <div key={f.id} onClick={() => setPreviewId(f.id)} title={`Preview ${f.title}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, background: "rgba(0,0,0,0.18)", border: `1px solid ${theme.border}`, cursor: "pointer" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                             <FileText size={17} color={theme.tag} style={{ flexShrink: 0 }} />
                             <div style={{ minWidth: 0 }}>
@@ -384,7 +386,7 @@ export default function WorkspacePage() {
                             </div>
                           </div>
                           {canDelete && (
-                            <button onClick={() => removeFile(f)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer", padding: 6, borderRadius: 6, transition: "color 0.2s" }}
+                            <button onClick={(e) => { e.stopPropagation(); void removeFile(f); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer", padding: 6, borderRadius: 6, transition: "color 0.2s" }}
                               onMouseEnter={e => e.currentTarget.style.color = "#f87171"}
                               onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.35)"}
                             ><Trash2 size={15} /></button>
@@ -446,6 +448,7 @@ export default function WorkspacePage() {
           </div>
         )}
       </main>
+      {previewId && <DocPreview documentId={previewId} onClose={() => setPreviewId(null)} />}
       <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }`}</style>
     </div>
   );

@@ -16,6 +16,7 @@ import { useRagChat, type ChatMessage } from "@/hooks/useRagChat";
 import { useUploadDocuments, UPLOAD_ACCEPT } from "@/hooks/useUploadDocuments";
 import { logout } from "@/actions/auth";
 import type { DocumentRow } from "@/types/rag";
+import DocPreview from "@/components/birbal/DocPreview";
 
 const VIDEO_URL =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4";
@@ -67,6 +68,7 @@ function ChatView() {
   // A question waiting on its attachments to finish indexing.
   const [pending, setPending] = useState<{ text: string; names: string[] } | null>(null);
   const [openSource, setOpenSource] = useState<{ msgId: string; marker: number } | null>(null);
+  const [preview, setPreview] = useState<{ id: string; page?: number | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -351,7 +353,7 @@ function ChatView() {
             </p>
           )}
           {documents.map((doc) => (
-            <DocumentItem key={doc.id} doc={doc} onDelete={() => deleteDocument(doc)} />
+            <DocumentItem key={doc.id} doc={doc} onOpen={() => setPreview({ id: doc.id })} onDelete={() => deleteDocument(doc)} />
           ))}
         </div>
 
@@ -432,6 +434,7 @@ function ChatView() {
                 onToggleSource={(marker) =>
                   setOpenSource((cur) => (cur?.msgId === msg.id && cur.marker === marker ? null : { msgId: msg.id, marker }))
                 }
+                onOpenDocument={(id, page) => setPreview({ id, page })}
               />
             )
           )}
@@ -441,6 +444,7 @@ function ChatView() {
               msg={{ id: "pending", role: "user", text: pending.text, attachments: pending.names, sources: [], grounding: null, streaming: false, stage: null }}
               openMarker={null}
               onToggleSource={() => {}}
+              onOpenDocument={() => {}}
             />
           )}
 
@@ -567,6 +571,8 @@ function ChatView() {
         </div>
       </div>
 
+      {preview && <DocPreview documentId={preview.id} page={preview.page} onClose={() => setPreview(null)} />}
+
       {/* Inline keyframes */}
       <style>{`
         @keyframes pulse-status {
@@ -642,16 +648,17 @@ function docStatus(doc: DocumentRow) {
   return { text: `Reading… ${doc.progress_pct ?? 0}%`, color: "#fbbf24" };
 }
 
-function DocumentItem({ doc, onDelete }: { doc: DocumentRow; onDelete: () => void }) {
+function DocumentItem({ doc, onOpen, onDelete }: { doc: DocumentRow; onOpen: () => void; onDelete: () => void }) {
   const [hover, setHover] = useState(false);
   const status = docStatus(doc);
   return (
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      title={doc.status === "failed" ? doc.error ?? undefined : doc.title}
+      onClick={onOpen}
+      title={doc.status === "failed" ? doc.error ?? undefined : `Preview ${doc.title}`}
       style={{
-        display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10,
+        display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, cursor: "pointer",
         background: hover ? "rgba(255,255,255,0.07)" : "transparent", transition: "background 0.15s",
       }}
     >
@@ -663,7 +670,7 @@ function DocumentItem({ doc, onDelete }: { doc: DocumentRow; onDelete: () => voi
         <div style={{ fontSize: 10.5, color: status.color, marginTop: 1 }}>{status.text}</div>
       </div>
       {hover && (
-        <button onClick={onDelete} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex", padding: 2 }}
+        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex", padding: 2 }}
           onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
           onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
         >
@@ -685,8 +692,13 @@ const VERDICT_NOTE: Record<string, { text: string; color: string }> = {
 };
 
 function MessageRow({
-  msg, openMarker, onToggleSource,
-}: { msg: ChatMessage; openMarker: number | null; onToggleSource: (marker: number) => void }) {
+  msg, openMarker, onToggleSource, onOpenDocument,
+}: {
+  msg: ChatMessage;
+  openMarker: number | null;
+  onToggleSource: (marker: number) => void;
+  onOpenDocument: (documentId: string, page: number | null) => void;
+}) {
   const isUser = msg.role === "user";
   const nearMiss = msg.grounding?.verdict === "insufficient_evidence";
   const note = msg.grounding ? VERDICT_NOTE[msg.grounding.verdict] : undefined;
@@ -783,6 +795,15 @@ function MessageRow({
                       {openSrc.sectionPath.length > 0 ? ` · ${openSrc.sectionPath.join(" › ")}` : ""}
                     </div>
                     “{openSrc.snippet}”
+                    {openSrc.documentId && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenDocument(openSrc.documentId, openSrc.pageFrom)}
+                        style={{ display: "block", marginTop: 8, background: "none", border: "none", padding: 0, color: "#fff", fontSize: 12, textDecoration: "underline", textUnderlineOffset: 3, cursor: "pointer" }}
+                      >
+                        Open document{openSrc.pageFrom != null ? ` at page ${openSrc.pageFrom}` : ""} →
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
