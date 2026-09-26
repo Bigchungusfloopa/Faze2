@@ -3,7 +3,7 @@
 import { ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Boxes } from "lucide-react"
+import { Boxes, Sparkles } from "lucide-react"
 import { Toaster } from "@/components/ui/sonner"
 import UserMenu from "@/components/user-menu"
 import { VaultWindowManager } from "@/components/vault/VaultWindowManager"
@@ -24,6 +24,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <Link href="/modules" title="Modules" aria-label="Modules" className={`flex items-center gap-1.5 font-sans font-bold text-[14px] transition-colors ${pathname.startsWith('/modules') ? 'text-[#0A0A0A]' : 'text-[#555550] hover:text-[#0A0A0A]'}`}>
             <Boxes className="w-5 h-5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Modules</span>
+          </Link>
+          <Link href="/research" title="Research" aria-label="Research" className={`flex items-center gap-1.5 font-sans font-bold text-[14px] transition-colors ${pathname.startsWith('/research') ? 'text-[#0A0A0A]' : 'text-[#555550] hover:text-[#0A0A0A]'}`}>
+            <Sparkles className="w-5 h-5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Research</span>
           </Link>
           <UserMenu />
         </nav>
