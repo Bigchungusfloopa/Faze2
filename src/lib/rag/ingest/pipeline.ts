@@ -1,4 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getObjectBytes } from "@/lib/storage";
+import { uploadAndWaitActive } from "@/lib/gemini/files";
+import { classifyAndExtract, extractPlainText, type ClassifyExtractResult } from "./classify_extract";
+import { contextualizeDocument, templatedContext, assembleContextHeader, type DocContext } from "./contextualize";
+import { chunkDocument } from "./chunk";
+import { embedDocuments } from "@/lib/gemini/embed";
+import { GEMINI_EMBED_MODEL } from "@/lib/gemini/models";
 import type { DocStage } from "@/types/rag";
 
 /**
@@ -9,14 +16,6 @@ import type { DocStage } from "@/types/rag";
  * is the liftability contract: moving this from an in-process `after()` call
  * into a real background worker later is a matter of importing this same
  * function from a different caller, not rewriting it.
- *
- * PHASE 2 STUB: without GEMINI_API_KEY set, this walks the document through
- * every real stage with placeholder timing and writes zero chunks, so the
- * status machine, the ingestion_events audit trail, and the UI's pipeline
- * stepper are provably correct before a single Gemini token is spent. Phase 3
- * replaces the body of the `if (!apiKey)` branch's else-arm with the real
- * classify -> extract -> contextualize -> chunk -> embed sequence; the claim,
- * the failure handling, and this function's signature do not change.
  */
 export async function runIngestion(documentId: string): Promise<void> {
   const db = createAdminClient();
@@ -34,12 +33,12 @@ export async function runIngestion(documentId: string): Promise<void> {
   }
   if (!claimed) return;
 
-  const { data: doc } = await db
+  const { data: doc, error: fetchError } = await db
     .from("documents")
-    .select("owner_id")
+    .select("owner_id, storage_key, mime_type, source_filename")
     .eq("id", documentId)
     .single();
-  if (!doc) {
+  if (fetchError || !doc) {
     console.error(`[ingest ${documentId}] claimed but row is gone`);
     return;
   }
@@ -51,15 +50,7 @@ export async function runIngestion(documentId: string): Promise<void> {
       return;
     }
 
-    // TODO(Phase 3): real pipeline.
-    //   classify(documentId)        -> doc_kind, pipeline, classification_*
-    //   extract(documentId)         -> documents.pages, page_count
-    //   contextualize(documentId)   -> documents.doc_summary, outline
-    //   chunk(documentId)           -> chunks rows (content, section_path, ...)
-    //   embed(documentId)           -> chunks.embedding
-    // Each stage writes documents.stage/progress_pct and an ingestion_events
-    // row as it goes, the same way runStub() does below.
-    await runStub(db, documentId, ownerId);
+    await runReal(db, documentId, ownerId, doc.storage_key, doc.mime_type, doc.source_filename);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[ingest ${documentId}] failed:`, message);
@@ -72,6 +63,121 @@ export async function runIngestion(documentId: string): Promise<void> {
 }
 
 type AdminClient = ReturnType<typeof createAdminClient>;
+
+// Chunk-count guardrail from the design: per-document contextualization is
+// one call regardless of document size, but if a document produces an
+// unusually large number of chunks, even that one call's ~60k-char input cap
+// stops representing the document well, and it's cheaper and just as useful
+// to fall back to the templated header for chunks past this scale.
+const MAX_CHUNKS_FOR_LLM_CONTEXT = 400;
+
+async function runReal(
+  db: AdminClient,
+  documentId: string,
+  ownerId: string,
+  storageKey: string,
+  mimeType: string,
+  filename: string
+) {
+  await setStage(db, documentId, "classifying", 10);
+  const bytes = await getObjectBytes(storageKey);
+
+  let extracted: ClassifyExtractResult;
+  if (mimeType === "text/plain" || mimeType === "text/markdown" || mimeType === "text/csv") {
+    extracted = extractPlainText(bytes, filename);
+  } else {
+    const { uri } = await uploadAndWaitActive(bytes, mimeType, filename);
+    extracted = await classifyAndExtract(uri, mimeType, filename);
+  }
+  await logEvent(db, documentId, ownerId, "classifying", "ok", `${extracted.docKind} / ${extracted.pipeline}`);
+
+  await db
+    .from("documents")
+    .update({
+      doc_kind: extracted.docKind,
+      pipeline: extracted.pipeline,
+      classification_confidence: extracted.confidence,
+      classification_reason: extracted.reason,
+      language: extracted.language,
+      title: extracted.title || filename,
+      page_count: extracted.pageCount,
+      metadata: { page_meta: extracted.pageMeta },
+    })
+    .eq("id", documentId);
+
+  await setStage(db, documentId, "extracting", 40, `${extracted.pages.length} page(s) transcribed`);
+  await logEvent(db, documentId, ownerId, "extracting", "ok", `${extracted.pages.length} pages`);
+
+  await setStage(db, documentId, "chunking", 60);
+  const chunks = chunkDocument(extracted.pages, extracted.docKind);
+  if (chunks.length === 0) throw new Error("Chunking produced zero chunks -- nothing to index.");
+  await logEvent(db, documentId, ownerId, "chunking", "ok", `${chunks.length} chunks`);
+
+  await setStage(db, documentId, "contextualizing", 75);
+  let ctx: DocContext;
+  const totalChars = extracted.pages.reduce((sum, p) => sum + p.markdown.length, 0);
+  if (chunks.length > MAX_CHUNKS_FOR_LLM_CONTEXT || totalChars < 500) {
+    ctx = templatedContext(extracted.title || filename, extracted.docKind);
+  } else {
+    try {
+      ctx = await contextualizeDocument(extracted.pages, extracted.title || filename, extracted.docKind);
+    } catch (err) {
+      console.warn(`[ingest ${documentId}] contextualize failed, falling back to templated:`, err);
+      ctx = templatedContext(extracted.title || filename, extracted.docKind);
+    }
+  }
+  await db.from("documents").update({ doc_summary: ctx.docSummary, outline: ctx.sections }).eq("id", documentId);
+  await logEvent(db, documentId, ownerId, "contextualizing", "ok");
+
+  const contextHeaders = chunks.map((c) => assembleContextHeader(c, ctx, extracted.title || filename, extracted.docKind));
+
+  await setStage(db, documentId, "embedding", 90);
+  const embedInputs = chunks.map((c, i) => `${contextHeaders[i]}\n\n${c.content}`);
+  const vectors = await embedDocuments(embedInputs, extracted.title || filename);
+  await logEvent(db, documentId, ownerId, "embedding", "ok", `${vectors.length} vectors`);
+
+  const rows = chunks.map((c, i) => ({
+    document_id: documentId,
+    owner_id: ownerId,
+    chunk_index: c.chunkIndex,
+    content: c.content,
+    contextual_text: contextHeaders[i],
+    content_kind: c.contentKind,
+    page_from: c.pageFrom,
+    page_to: c.pageTo,
+    section_path: c.sectionPath,
+    heading: c.heading,
+    token_count: c.tokenCount,
+    embedding: vectors[i],
+    embedding_model: GEMINI_EMBED_MODEL,
+  }));
+
+  // Clear any prior generation's chunks before writing the new one -- keeps
+  // a reprocess idempotent rather than accumulating duplicates alongside a
+  // changed chunk_index numbering.
+  await db.from("chunks").delete().eq("document_id", documentId);
+  const { error: chunksError } = await db.from("chunks").insert(rows);
+  if (chunksError) throw new Error(`Failed to write chunks: ${chunksError.message}`);
+
+  await db
+    .from("documents")
+    .update({
+      status: "ready",
+      stage: "done",
+      progress_pct: 100,
+      stage_detail: null,
+      chunk_count: rows.length,
+      ingest_finished_at: new Date().toISOString(),
+    })
+    .eq("id", documentId);
+  await logEvent(db, documentId, ownerId, "done", "ok", `${rows.length} chunks indexed`);
+}
+
+async function setStage(db: AdminClient, documentId: string, stage: DocStage, pct: number, detail?: string) {
+  await db.from("documents").update({ stage, progress_pct: pct, stage_detail: detail ?? null }).eq("id", documentId);
+}
+
+// --- Stub, used only when GEMINI_API_KEY is absent --------------------------
 
 const STUB_STAGES: Array<{ stage: DocStage; pct: number; ms: number }> = [
   { stage: "classifying", pct: 15, ms: 500 },
