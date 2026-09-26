@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { UploadDropzone } from "@/components/rag/UploadDropzone"
 import { DocumentPipelineCard } from "@/components/rag/DocumentPipelineCard"
+import { ChatPanel } from "@/components/rag/ChatPanel"
 import type { DocumentRow } from "@/types/rag"
 
 async function fetchDocuments(): Promise<DocumentRow[]> {
@@ -55,6 +56,11 @@ export default function ResearchPage() {
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <h2 className="font-bold text-sm text-muted-foreground uppercase tracking-wide mb-3">Ask</h2>
+        <ChatPanel />
       </div>
     </div>
   )
