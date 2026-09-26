@@ -1077,3 +1077,51 @@ body.landing-active {
   vertical-align: 2px; transition: transform 0.15s;
 }
 .cite-pill:hover { transform: scale(1.15); }
+
+/* ── Mobile (≤720px) ─────────────────────────────────────────────────────
+   Inline styles carry main's desktop design, so overrides need !important. */
+.chat-backdrop { display: none; }
+.doc-preview-mobile-hint { display: none; }
+
+@media (max-width: 720px) {
+  /* Chat: sidebar becomes a slide-in drawer instead of disappearing */
+  .chat-sidebar {
+    position: fixed !important; top: 0; bottom: 0; left: 0;
+    z-index: 60 !important;
+    width: min(84vw, 300px) !important;
+    margin: 0 !important;
+    border-radius: 0 22px 22px 0 !important;
+    opacity: 1 !important;
+    background: rgba(14,14,16,0.94) !important;
+    transform: translateX(-105%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+  }
+  .chat-sidebar.open { transform: translateX(0); box-shadow: 0 8px 40px rgba(0,0,0,0.6) !important; }
+  .chat-backdrop { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,0.55); }
+
+  .chat-main { margin: 8px !important; border-radius: 18px !important; }
+  .chat-messages { padding: 16px 12px !important; gap: 16px !important; }
+  .chat-bubble { max-width: 86% !important; font-size: 15px !important; padding: 10px 14px !important; }
+  .chat-input-area { padding: 8px 8px 10px !important; }
+  .chat-badge { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* iOS Safari zooms into any input under 16px on focus */
+  .chat-textarea, .auth-input, .ws-input { font-size: 16px !important; }
+
+  /* Communities */
+  .ws-header { padding: 14px 16px !important; }
+  .ws-brand-text { display: none; }
+  .ws-nav a, .ws-nav div { padding: 7px 12px !important; font-size: 13px !important; }
+  .ws-main { padding: 8px 14px 40px !important; }
+  .ws-detail-card { padding: 16px !important; border-radius: 20px !important; }
+  .ws-row { flex-wrap: wrap; gap: 10px; padding: 10px 12px !important; }
+
+  /* Preview window goes full-screen */
+  .doc-preview-overlay { padding: 0 !important; }
+  .doc-preview-panel { width: 100% !important; height: 100dvh !important; border-radius: 0 !important; }
+  .doc-preview-mobile-hint {
+    display: block; padding: 10px 14px; text-align: center; font-size: 13px;
+    color: #fff; background: rgba(255,255,255,0.08); text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+}

@@ -55,10 +55,12 @@ export default function DocPreview({ documentId, page, onClose }: { documentId: 
   return (
     <div
       onClick={onClose}
+      className="doc-preview-overlay"
       style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, animation: "fadeIn 0.2s ease" }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="doc-preview-panel"
         style={{ ...frost(0.07, 28), width: "min(1000px, 100%)", height: "min(88vh, 100%)", borderRadius: 22, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", overflow: "hidden" }}
       >
         <header style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.2)" }}>
@@ -85,7 +87,14 @@ export default function DocPreview({ documentId, page, onClose }: { documentId: 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", display: "flex", background: "rgba(0,0,0,0.25)" }}>
           {isLoading && <Centered>Loading preview…</Centered>}
           {error && <Centered>{(error as Error).message}</Centered>}
-          {data && isPdf && <iframe src={pdfSrc} title={data.title} style={{ flex: 1, border: "none", background: "#fff" }} />}
+          {data && isPdf && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+              <a href={pdfSrc} target="_blank" rel="noreferrer noopener" className="doc-preview-mobile-hint">
+                Tap to open the full PDF{page ? ` at page ${page}` : ""} ↗
+              </a>
+              <iframe src={pdfSrc} title={data.title} style={{ flex: 1, border: "none", background: "#fff" }} />
+            </div>
+          )}
           {data && isImage && (
             // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived storage URL
             <img src={data.url} alt={data.title} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", margin: "auto" }} />

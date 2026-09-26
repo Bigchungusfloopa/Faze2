@@ -48,7 +48,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div style={{ height: "100vh", background: "#000" }} />}>
+    <Suspense fallback={<div style={{ height: "100dvh", background: "#000" }} />}>
       <ChatView />
     </Suspense>
   );
@@ -63,6 +63,9 @@ function ChatView() {
 
   const [isDragging, setIsDragging] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // Phones get the sidebar as a slide-in drawer instead of main's hide-below-720px.
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileNav, setMobileNav] = useState(false);
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   // A question waiting on its attachments to finish indexing.
@@ -99,6 +102,14 @@ function ChatView() {
   useEffect(() => {
     resetConversation();
   }, [workspaceId, resetConversation]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 720px)");
+    const sync = () => { setIsMobile(mq.matches); if (!mq.matches) setMobileNav(false); };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -191,11 +202,13 @@ function ChatView() {
 
   const startNewChat = () => {
     if (busy) return;
+    setMobileNav(false);
     resetConversation();
     setFiles([]); setInput("");
   };
 
   const loadSession = async (id: string) => {
+    setMobileNav(false);
     if (busy || id === conversationId) return;
     try {
       await loadConversation(id);
@@ -221,7 +234,7 @@ function ChatView() {
 
   return (
     <div
-      style={{ position: "relative", height: "100vh", overflow: "hidden", background: "#000", display: "flex" }}
+      style={{ position: "relative", height: "100dvh", overflow: "hidden", background: "#000", display: "flex" }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -275,7 +288,7 @@ function ChatView() {
         transition: "width 0.28s cubic-bezier(0.4,0,0.2,1), margin 0.28s cubic-bezier(0.4,0,0.2,1), box-shadow 0.28s ease",
         opacity: isSidebarOpen ? 1 : 0,
       }}
-        className="hidden-mobile"
+        className={`chat-sidebar${mobileNav ? " open" : ""}`}
       >
         {/* Logo row */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
@@ -313,12 +326,12 @@ function ChatView() {
         {/* Spaces: personal corpus + every community you belong to */}
         <SectionLabel>Spaces</SectionLabel>
         <div style={{ maxHeight: "30%", overflowY: "auto", padding: "0 8px", flexShrink: 0 }}>
-          <SidebarItem active={!isWorkspace} onClick={() => !busy && router.push("/chat")}>
+          <SidebarItem active={!isWorkspace} onClick={() => { if (busy) return; setMobileNav(false); router.push("/chat"); }}>
             <Lock size={12} style={{ opacity: 0.5, flexShrink: 0 }} />
             <span>Personal</span>
           </SidebarItem>
           {workspaces.map((w) => (
-            <SidebarItem key={w.id} active={workspaceId === w.id} onClick={() => !busy && router.push(`/chat?workspace=${w.id}`)}>
+            <SidebarItem key={w.id} active={workspaceId === w.id} onClick={() => { if (busy) return; setMobileNav(false); router.push(`/chat?workspace=${w.id}`); }}>
               <Hash size={12} style={{ opacity: 0.5, flexShrink: 0 }} />
               <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{w.name}</span>
             </SidebarItem>
@@ -353,7 +366,7 @@ function ChatView() {
             </p>
           )}
           {documents.map((doc) => (
-            <DocumentItem key={doc.id} doc={doc} onOpen={() => setPreview({ id: doc.id })} onDelete={() => deleteDocument(doc)} />
+            <DocumentItem key={doc.id} doc={doc} onOpen={() => { setMobileNav(false); setPreview({ id: doc.id }); }} onDelete={() => deleteDocument(doc)} />
           ))}
         </div>
 
@@ -367,9 +380,10 @@ function ChatView() {
           </form>
         </div>
       </aside>
+      {mobileNav && <div className="chat-backdrop" onClick={() => setMobileNav(false)} />}
 
       {/* ── Main chat ── */}
-      <div style={{
+      <div className="chat-main" style={{
         ...frost(0.06, 20),
         flex: 1, display: "flex", flexDirection: "column", minWidth: 0,
         margin: "12px", borderRadius: 22,
@@ -388,8 +402,8 @@ function ChatView() {
         }}>
           {/* Sidebar toggle */}
           <button
-            onClick={() => setIsSidebarOpen(o => !o)}
-            title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+            onClick={() => (isMobile ? setMobileNav(o => !o) : setIsSidebarOpen(o => !o))}
+            title={(isMobile ? mobileNav : isSidebarOpen) ? "Close sidebar" : "Open sidebar"}
             style={{
               background: "none", border: "none", cursor: "pointer",
               color: "rgba(255,255,255,0.55)", display: "flex", alignItems: "center",
@@ -398,7 +412,7 @@ function ChatView() {
             onMouseEnter={e => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
             onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.55)"; e.currentTarget.style.background = "none"; }}
           >
-            {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            {(isMobile ? mobileNav : isSidebarOpen) ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
           </button>
           <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center", color: "#000" }}>
             <FileText size={13} />
@@ -408,7 +422,7 @@ function ChatView() {
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: "auto", fontSize: 11, color: "var(--muted)" }}>
             {isWorkspace && (
-              <span style={{
+              <span className="chat-badge" style={{
                 background: "rgba(255,255,255,0.1)", color: "#fff",
                 padding: "4px 8px", borderRadius: 4, marginRight: 8,
               }}>
@@ -424,7 +438,7 @@ function ChatView() {
         </header>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="chat-messages" style={{ flex: 1, overflowY: "auto", padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
           {shown.map((msg) =>
             msg.role === "assistant" && msg.streaming && !msg.text ? null : (
               <MessageRow
@@ -475,7 +489,7 @@ function ChatView() {
         </div>
 
         {/* Input area */}
-        <div style={{ padding: "14px 18px 18px", flexShrink: 0 }}>
+        <div className="chat-input-area" style={{ padding: "14px 18px 18px", flexShrink: 0 }}>
           {/* File pills */}
           {files.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
@@ -533,7 +547,12 @@ function ChatView() {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={canUpload ? "Ask anything about your documents… or drop files here" : "Ask anything about this community's documents…"}
+              className="chat-textarea"
+              placeholder={
+                isMobile
+                  ? "Ask about your documents…"
+                  : canUpload ? "Ask anything about your documents… or drop files here" : "Ask anything about this community's documents…"
+              }
               rows={1}
               style={{
                 flex: 1, background: "transparent", border: "none", outline: "none",
@@ -586,8 +605,6 @@ function ChatView() {
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
-        .hidden-mobile { display: flex; flex-direction: column; }
-        @media (max-width: 720px) { .hidden-mobile { display: none !important; } }
       `}</style>
     </div>
   );
@@ -717,7 +734,7 @@ function MessageRow({
         {isUser ? <User size={13} /> : <FileText size={13} />}
       </div>
       {/* Bubble */}
-      <div style={{
+      <div className="chat-bubble" style={{
         maxWidth: "68%", padding: "12px 18px", fontSize: 16, lineHeight: 1.7,
         ...(isUser
           ? {

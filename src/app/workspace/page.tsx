@@ -206,19 +206,19 @@ export default function WorkspacePage() {
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", zIndex: 0, pointerEvents: "none" }} />
 
       {/* Header */}
-      <header style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 40px", maxWidth: 1200, width: "100%", margin: "0 auto" }}>
+      <header className="ws-header" style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 40px", maxWidth: 1200, width: "100%", margin: "0 auto" }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center", color: "#000" }}><FileText size={16} /></div>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "#fff", letterSpacing: "-0.02em" }}>Birbal</span>
+          <span className="ws-brand-text" style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "#fff", letterSpacing: "-0.02em" }}>Birbal</span>
         </Link>
-        <nav style={{ display: "flex", gap: 4, ...frost(0.05, 12), padding: 6, borderRadius: 999 }}>
+        <nav className="ws-nav" style={{ display: "flex", gap: 4, ...frost(0.05, 12), padding: 6, borderRadius: 999 }}>
           <Link href="/"     style={{ padding: "8px 16px", color: "#ccc", textDecoration: "none", fontSize: 14, borderRadius: 999 }}>Home</Link>
           <div               style={{ padding: "8px 16px", color: "#fff", fontSize: 14, borderRadius: 999, background: "rgba(255,255,255,0.10)" }}>Workspace</div>
           <Link href="/chat" style={{ padding: "8px 16px", color: "#ccc", textDecoration: "none", fontSize: 14, borderRadius: 999 }}>Chat</Link>
         </nav>
       </header>
 
-      <main style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 20px 48px" }}>
+      <main className="ws-main" style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 20px 48px" }}>
 
         {/* ====== LIST VIEW ====== */}
         {!activeCommunity && (
@@ -247,9 +247,9 @@ export default function WorkspacePage() {
             {form && (
               <div style={{ ...frost(0.06, 28, "rgba(255,255,255,0.15)"), borderRadius: 20, padding: "24px 28px", marginBottom: 24, display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ color: "#fff", fontWeight: 600, fontSize: 16 }}>{form === "create" ? "New Community" : "Join a Community"}</div>
-                <input value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && submitForm()} placeholder="Community name…" autoFocus style={inputStyle} />
+                <input value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && submitForm()} placeholder="Community name…" autoFocus className="ws-input" style={inputStyle} />
                 <input value={newPassword} onChange={e => setNewPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && submitForm()} type="password"
-                  placeholder={form === "create" ? "Set a password (share it with people you invite)…" : "Community password…"} style={inputStyle} />
+                  placeholder={form === "create" ? "Set a password (share it with people you invite)…" : "Community password…"} className="ws-input" style={inputStyle} />
                 {form === "create" && (
                   <div>
                     <p style={{ color: "var(--muted)", fontSize: 12, marginBottom: 10 }}>Choose a colour theme</p>
@@ -342,7 +342,7 @@ export default function WorkspacePage() {
               ><MessageSquare size={16} /> Chat with Community</button>
             </div>
 
-            <div style={{ background: theme.accent, border: `1px solid ${theme.border}`, backdropFilter: "blur(32px) saturate(200%)", WebkitBackdropFilter: "blur(32px) saturate(200%)", borderRadius: 24, padding: 28, display: "flex", flexDirection: "column", gap: 22, boxShadow: "0 20px 60px rgba(0,0,0,0.35)" }}>
+            <div className="ws-detail-card" style={{ background: theme.accent, border: `1px solid ${theme.border}`, backdropFilter: "blur(32px) saturate(200%)", WebkitBackdropFilter: "blur(32px) saturate(200%)", borderRadius: 24, padding: 28, display: "flex", flexDirection: "column", gap: 22, boxShadow: "0 20px 60px rgba(0,0,0,0.35)" }}>
               <div style={{ display: "flex", gap: 8, borderBottom: `1px solid ${theme.border}`, paddingBottom: 14 }}>
                 {(["files", "members"] as const).map(t => (
                   <button key={t} onClick={() => setTab(t)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 500, background: tab === t ? theme.border : "transparent", color: tab === t ? "#fff" : "rgba(255,255,255,0.45)", transition: "background 0.2s, color 0.2s" }}>
@@ -414,12 +414,12 @@ export default function WorkspacePage() {
                   )}
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {members.map(m => (
-                      <div key={m.user_id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, background: "rgba(0,0,0,0.18)", border: `1px solid ${theme.border}` }}>
+                      <div key={m.user_id} className="ws-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, background: "rgba(0,0,0,0.18)", border: `1px solid ${theme.border}` }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                           <div style={{ width: 36, height: 36, borderRadius: "50%", background: theme.accent, border: `1px solid ${theme.border}`, display: "grid", placeItems: "center", color: theme.tag, fontSize: 14, fontWeight: 700, flexShrink: 0 }}>{m.name.charAt(0).toUpperCase()}</div>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ color: "#fff", fontSize: 14, fontWeight: 500 }}>{m.name}{m.user_id === me ? " (you)" : ""}</div>
-                            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</div>
+                            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div>
                           </div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

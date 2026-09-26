@@ -209,14 +209,15 @@ export default function AuthPage({ mode }: { mode: Mode }) {
             />
 
             {mode === "signup" && (
-              <input style={inputStyle} placeholder="Full name" autoComplete="name" required minLength={2} value={name} onChange={(e) => setName(e.target.value)} />
+              <input className="auth-input" style={inputStyle} placeholder="Full name" autoComplete="name" required minLength={2} value={name} onChange={(e) => setName(e.target.value)} />
             )}
             {mode !== "update" && (
-              <input style={inputStyle} type="email" placeholder="Email address" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input className="auth-input" style={inputStyle} type="email" placeholder="Email address" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
             )}
             {mode !== "reset" && (
               <div style={{ position: "relative" }}>
                 <input
+                  className="auth-input"
                   style={{ ...inputStyle, paddingRight: 44 }}
                   type={showPassword ? "text" : "password"}
                   placeholder={mode === "login" ? "Password" : "Password (min. 8 characters)"}
