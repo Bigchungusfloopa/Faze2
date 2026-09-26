@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { getSignedUrlForR2, getSignedUrlForR2Download } from "@/lib/r2";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getViewUrl, getDownloadUrl } from "@/lib/storage";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string, itemId: string }> }) {
   try {
@@ -29,10 +29,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ error: "Access Denied. Join community to download." }, { status: 403 })
     }
 
-    const adminSupabase = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const adminSupabase = createAdminClient()
 
     // Fetch the community vault item & linked vault item files using admin client
     const { data: sharedItem, error: fetchError } = await adminSupabase
@@ -40,7 +37,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       .select(`
         vault_item:vault_items (
           id,
-          files ( r2_object_key, filename, mime_type )
+          files ( storage_key, filename, mime_type )
         )
       `)
       .eq('id', itemId)
@@ -59,9 +56,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     let signedUrl: string
     if (action === "download") {
-      signedUrl = await getSignedUrlForR2Download(file.r2_object_key, file.filename || "file", file.mime_type || undefined)
+      signedUrl = await getDownloadUrl(file.storage_key, file.filename || "file", file.mime_type || undefined)
     } else {
-      signedUrl = await getSignedUrlForR2(file.r2_object_key)
+      signedUrl = await getViewUrl(file.storage_key)
     }
 
     return NextResponse.json({ url: signedUrl })

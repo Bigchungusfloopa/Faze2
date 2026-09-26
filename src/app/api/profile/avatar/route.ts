@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
@@ -27,10 +27,7 @@ export async function POST(request: Request) {
     const filePath = `${user.id}-${Date.now()}.${fileExt}`;
 
     // Admin client to bypass RLS since the bucket might not have INSERT allowed for public
-    const supabaseAdmin = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabaseAdmin = createAdminClient();
 
     // Upload to Supabase 'avatars' bucket
     const { error: uploadError } = await supabaseAdmin.storage

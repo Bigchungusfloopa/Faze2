@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(request: Request) {
     const supabase = await createClient()
@@ -10,10 +10,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { target_type, target_id, value } = body
 
-    const adminSupabase = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const adminSupabase = createAdminClient()
 
     if (!['thread', 'reply'].includes(target_type)) {
         return NextResponse.json({ error: 'Invalid target_type' }, { status: 400 })

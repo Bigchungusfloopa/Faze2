@@ -2,13 +2,8 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
-import { deleteFileFromR2 } from "@/lib/r2"
-
-async function requireUser(supabase: any) {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) throw new Error("Unauthorized")
-  return user
-}
+import { deleteObject } from "@/lib/storage"
+import { requireUser } from "@/lib/auth"
 
 async function requireModuleRole(supabase: any, moduleId: string, userId: string) {
   const { data: member } = await supabase
@@ -126,7 +121,7 @@ export async function deleteVaultItem(itemId: string) {
 
   const { data: vaultItem, error: fetchError } = await supabase
     .from("vault_items")
-    .select("*, files(id, r2_object_key, size_bytes)")
+    .select("*, files(id, storage_key, size_bytes)")
     .eq("id", itemId)
     .eq("owner_id", user.id)
     .single()
@@ -135,11 +130,11 @@ export async function deleteVaultItem(itemId: string) {
 
   const fileRecord = vaultItem.files
 
-  if (fileRecord?.r2_object_key) {
+  if (fileRecord?.storage_key) {
     try {
-      await deleteFileFromR2(fileRecord.r2_object_key)
-    } catch (r2Error) {
-      console.error("Failed to delete file from R2:", r2Error)
+      await deleteObject(fileRecord.storage_key)
+    } catch (storageError) {
+      console.error("Failed to delete file from object storage:", storageError)
     }
 
     const { error: fileDeleteError } = await supabase.from("files").delete().eq("id", fileRecord.id)
