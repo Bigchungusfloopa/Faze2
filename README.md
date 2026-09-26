@@ -7,7 +7,7 @@ The interface is branded **Birbal**.
 ## What it does
 
 - **Many formats**: PDF (digital or scanned), images, Word, PowerPoint, Excel, CSV/TSV, text, Markdown and JSON.
-- **Automatic routing and classification**: each file is classified (research paper, lecture slides, table dataset, handwritten notes, …) and sent down the pipeline that suits it. Scans and images go through Gemini vision OCR; Office and tabular files are parsed directly.
+- **Automatic routing and classification**: each file is classified (research paper, lecture slides, table dataset, handwritten notes, …) and sent down the pipeline that suits it. Digital PDF pages use their own text layer; scanned pages and images are transcribed by a vision model, which marks unreadable text `[illegible]` rather than guessing; Office and tabular files are parsed directly.
 - **Hybrid retrieval**: vector search (pgvector) and keyword search combined with reciprocal rank fusion, then reranked.
 - **Grounded answers**: every claim cites its source. An evidence gate refuses to answer when nothing relevant is found, and conflicting sources are shown side by side.
 - **Conversations**: follow-up questions keep context; chats are saved and can be reopened with their citations.
@@ -15,7 +15,7 @@ The interface is branded **Birbal**.
 
 ## Stack
 
-Next.js 16 (App Router), Supabase (Postgres + pgvector, Auth, Storage), Gemini (`@google/genai`) for OCR, classification, embeddings and answers.
+Next.js 16 (App Router), Supabase (Postgres + pgvector, Auth, Storage), Mistral for vision transcription, classification, embeddings (`mistral-embed`, 1024 dims) and answers.
 
 `doc_agent/` holds the standalone Python version of the document agent. It is not part of the deployed app, and Vercel skips it (`.vercelignore`).
 
@@ -29,13 +29,13 @@ Next.js 16 (App Router), Supabase (Postgres + pgvector, Auth, Storage), Gemini (
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
    SUPABASE_SECRET_KEY=
    SUPABASE_DB_URL=            # session pooler connection string, for migrations
-   GEMINI_API_KEY=
-   GEMINI_EMBED_MODEL=gemini-embedding-2
-   GEMINI_EMBED_DIM=1536
-   GEMINI_PARSE_MODEL=
-   GEMINI_FAST_MODEL=
-   GEMINI_ANSWER_MODEL=
+   MISTRAL_API_KEY=
    ```
+
+   Optional model overrides (defaults suit a key limited to the Ministral models):
+   `MISTRAL_ANSWER_MODEL` (ministral-14b-latest), `MISTRAL_RERANK_MODEL` (ministral-14b-latest),
+   `MISTRAL_FAST_MODEL` (ministral-8b-latest), `MISTRAL_VISION_MODEL` (ministral-14b-latest),
+   `MISTRAL_EMBED_MODEL` (mistral-embed).
 
 3. Apply the migrations in order:
 

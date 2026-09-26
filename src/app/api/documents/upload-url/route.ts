@@ -4,7 +4,7 @@ import { getUploadToken } from "@/lib/storage";
 import { STORAGE_BUCKET } from "@/lib/storage-constants";
 import { resolveFormat } from "@/lib/rag/ingest/formats";
 
-const MAX_FILE_SIZE = 45 * 1024 * 1024; // 45 MB — under Gemini's native 50MB PDF cap
+const MAX_FILE_SIZE = 45 * 1024 * 1024;
 
 /**
  * Step 1 of a direct-to-bucket upload: the client asks for a signed upload

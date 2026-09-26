@@ -1,6 +1,5 @@
-import { Type, type Schema } from "@google/genai";
-import { generateJson } from "@/lib/gemini/json";
-import { GEMINI_FAST_MODEL } from "@/lib/gemini/models";
+import { chatJson, type JsonSchema } from "@/lib/ai/mistral";
+import { FAST_MODEL } from "@/lib/ai/models";
 
 export type QueryIntent = "lookup" | "compare" | "synthesis" | "chitchat";
 
@@ -18,43 +17,36 @@ interface RawRewrite {
   needs_retrieval: boolean;
 }
 
-const RESPONSE_SCHEMA: Schema = {
-  type: Type.OBJECT,
+const INTENTS = ["lookup", "compare", "synthesis", "chitchat"];
+
+const RESPONSE_SCHEMA: JsonSchema = {
+  type: "object",
+  additionalProperties: false,
   required: ["standalone_query", "sub_queries", "intent", "needs_retrieval"],
   properties: {
-    standalone_query: {
-      type: Type.STRING,
-      description: "The user's latest message rewritten to need no conversation history to interpret.",
-    },
-    sub_queries: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description:
-        "1-4 independent search queries. If the question needs facts that live in different places " +
-        "(a comparison, a synthesis of several sources), decompose into 2-4. Otherwise return exactly one, " +
-        "equal to standalone_query.",
-    },
-    intent: {
-      type: Type.STRING,
-      enum: ["lookup", "compare", "synthesis", "chitchat"],
-      format: "enum",
-      description:
-        "lookup = a specific fact. compare = contrasting 2+ sources. synthesis = combining several passages. " +
-        "chitchat = no retrieval needed at all (greetings, thanks, meta-questions about the conversation itself).",
-    },
-    needs_retrieval: { type: Type.BOOLEAN },
+    standalone_query: { type: "string" },
+    sub_queries: { type: "array", items: { type: "string" } },
+    intent: { type: "string", enum: INTENTS },
+    needs_retrieval: { type: "boolean" },
   },
 };
 
-const NO_HISTORY_INTENT_ONLY: Schema = {
-  type: Type.OBJECT,
+const NO_HISTORY_INTENT_ONLY: JsonSchema = {
+  type: "object",
+  additionalProperties: false,
   required: ["sub_queries", "intent", "needs_retrieval"],
   properties: {
-    sub_queries: { type: Type.ARRAY, items: { type: Type.STRING } },
-    intent: { type: Type.STRING, enum: ["lookup", "compare", "synthesis", "chitchat"], format: "enum" },
-    needs_retrieval: { type: Type.BOOLEAN },
+    sub_queries: { type: "array", items: { type: "string" } },
+    intent: { type: "string", enum: INTENTS },
+    needs_retrieval: { type: "boolean" },
   },
 };
+
+// Strict mode enforces shape but can't carry per-field guidance, so the
+// intent definitions live in the prompt.
+const INTENT_GUIDE = `intent: lookup = a specific fact; compare = contrasting 2+ sources;
+synthesis = combining several passages; chitchat = no retrieval needed (greetings,
+thanks, questions about the conversation itself).`;
 
 export interface HistoryTurn {
   role: "user" | "assistant";
@@ -69,13 +61,13 @@ export interface HistoryTurn {
  */
 export async function rewriteQuery(message: string, history: HistoryTurn[]): Promise<RewriteResult> {
   if (history.length === 0) {
-    const raw = await generateJson<Omit<RawRewrite, "standalone_query">>(
-      GEMINI_FAST_MODEL,
+    const raw = await chatJson<Omit<RawRewrite, "standalone_query">>(
+      FAST_MODEL,
       `Decide how to search for an answer to this message:\n\n"${message}"\n\n` +
         `If it needs facts from different places (a comparison, a synthesis of several sources), ` +
         `decompose into 2-4 independent search queries. Otherwise return exactly one, equal to the message ` +
         `itself. If this is a greeting, thanks, or a meta-question about the conversation with no factual ` +
-        `content to look up, set needs_retrieval to false.`,
+        `content to look up, set needs_retrieval to false.\n\n${INTENT_GUIDE}`,
       NO_HISTORY_INTENT_ONLY
     );
     return {
@@ -106,9 +98,11 @@ standalone query.
 
 If the latest message is a greeting, thanks, or purely about the conversation
 itself (e.g. "can you rephrase that") with nothing new to look up, set
-needs_retrieval to false.`;
+needs_retrieval to false.
 
-  const raw = await generateJson<RawRewrite>(GEMINI_FAST_MODEL, prompt, RESPONSE_SCHEMA);
+${INTENT_GUIDE}`;
+
+  const raw = await chatJson<RawRewrite>(FAST_MODEL, prompt, RESPONSE_SCHEMA);
 
   return {
     standaloneQuery: raw.standalone_query || message,

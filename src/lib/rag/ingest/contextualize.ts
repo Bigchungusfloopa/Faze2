@@ -1,6 +1,5 @@
-import { Type, type Schema } from "@google/genai";
-import { generateJson } from "@/lib/gemini/json";
-import { GEMINI_FAST_MODEL } from "@/lib/gemini/models";
+import { chatJson, type JsonSchema } from "@/lib/ai/mistral";
+import { FAST_MODEL } from "@/lib/ai/models";
 import type { ChunkDraft, ExtractedPage } from "./chunk";
 
 /**
@@ -18,23 +17,21 @@ export interface DocContext {
   sections: Array<{ path: string[]; summary: string }>;
 }
 
-const RESPONSE_SCHEMA: Schema = {
-  type: Type.OBJECT,
+const RESPONSE_SCHEMA: JsonSchema = {
+  type: "object",
+  additionalProperties: false,
   required: ["doc_summary", "sections"],
   properties: {
-    doc_summary: { type: Type.STRING, description: "60 words or fewer summarising the whole document." },
+    doc_summary: { type: "string" },
     sections: {
-      type: Type.ARRAY,
+      type: "array",
       items: {
-        type: Type.OBJECT,
+        type: "object",
+        additionalProperties: false,
         required: ["path", "summary"],
         properties: {
-          path: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: "The heading path, e.g. ['Chapter 3', '3.2 Chain rule'].",
-          },
-          summary: { type: Type.STRING, description: "30 words or fewer summarising this section." },
+          path: { type: "array", items: { type: "string" } },
+          summary: { type: "string" },
         },
       },
     },
@@ -43,7 +40,7 @@ const RESPONSE_SCHEMA: Schema = {
 
 const MAX_INPUT_CHARS = 60_000;
 
-// generateJson<T>() is `JSON.parse(text) as T` -- a type assertion, not a
+// chatJson<T>() is `JSON.parse(text) as T` -- a type assertion, not a
 // runtime conversion. The model returns the snake_case keys the schema asks
 // for; casting straight to DocContext's camelCase shape would compile fine
 // and be silently wrong at runtime (found by testing: docSummary came back
@@ -66,14 +63,15 @@ export async function contextualizeDocument(
 ${truncated}
 
 Summarise this document (<=60 words), and separately summarise (<=30 words
-each) every section you can identify from its heading hierarchy. If the
-document has no headings, return an empty sections array.`;
+each) every section you can identify from its heading hierarchy. "path" is the
+heading path, e.g. ["Chapter 3", "3.2 Chain rule"], using the headings exactly as
+written. If the document has no headings, return an empty sections array.`;
 
-  const raw = await generateJson<RawDocContext>(GEMINI_FAST_MODEL, prompt, RESPONSE_SCHEMA);
+  const raw = await chatJson<RawDocContext>(FAST_MODEL, prompt, RESPONSE_SCHEMA);
   return { docSummary: raw.doc_summary, sections: raw.sections ?? [] };
 }
 
-/** For short documents that would never clear Gemini's implicit-caching threshold anyway. */
+/** For very short or very long documents, where a summary call isn't worth it. */
 export function templatedContext(title: string, docKind: string | null): DocContext {
   return { docSummary: `${title}${docKind ? ` (${docKind})` : ""}.`, sections: [] };
 }

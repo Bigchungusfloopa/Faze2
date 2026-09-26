@@ -5,38 +5,14 @@ import { retrieveMulti } from "@/lib/rag/retrieve";
 import { rerank } from "@/lib/rag/rerank";
 import { assembleEvidence, buildUserPrompt } from "@/lib/rag/prompt";
 import { parseCitations, buildCitationRows } from "@/lib/rag/citations";
-import { getGenAI } from "@/lib/gemini/client";
-import { GEMINI_ANSWER_MODEL } from "@/lib/gemini/models";
-import type { GenerateContentParameters } from "@google/genai";
+import { chatStream } from "@/lib/ai/mistral";
+import { ANSWER_MODEL } from "@/lib/ai/models";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-}
-
-/**
- * The provider genuinely returns 503 "high demand" on individual models from
- * time to time (observed directly, not hypothesized) -- this failure mode
- * throws before any token is yielded, so retrying the call that OBTAINS the
- * stream is safe and doesn't risk duplicating already-streamed output. A
- * failure mid-stream, after tokens have reached the client, is not retried
- * here; restarting generation at that point would require the client to
- * discard partial output, which is a UX decision, not a transport one.
- */
-async function generateStreamWithRetry(params: GenerateContentParameters, maxAttempts = 3) {
-  const ai = getGenAI();
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await ai.models.generateContentStream(params);
-    } catch (err) {
-      const status = (err as { status?: number })?.status;
-      const retryable = status === 503 || status === 429;
-      if (!retryable || attempt >= maxAttempts - 1) throw err;
-      await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
-    }
-  }
 }
 
 /**
@@ -187,20 +163,19 @@ async function runChitchat(
 ) {
   push("stage", { stage: "generating" });
   const historyText = history.map((h) => `${h.role}: ${h.content}`).join("\n");
-  const genStream = await generateStreamWithRetry({
-    model: GEMINI_ANSWER_MODEL,
-    contents:
-      `Conversation so far:\n${historyText}\n\nUser: ${message}\n\n` +
-      `Reply naturally and briefly. You have no documents to cite for this message.`,
-  });
+  const genStream = chatStream(ANSWER_MODEL, [
+    {
+      role: "user",
+      content:
+        `Conversation so far:\n${historyText}\n\nUser: ${message}\n\n` +
+        `Reply naturally and briefly. You have no documents to cite for this message.`,
+    },
+  ]);
 
   let full = "";
-  for await (const chunk of genStream) {
-    const delta = chunk.text ?? "";
-    if (delta) {
-      full += delta;
-      push("token", { text: delta });
-    }
+  for await (const delta of genStream) {
+    full += delta;
+    push("token", { text: delta });
   }
 
   const { data: asstMsg } = await supabase
@@ -213,7 +188,7 @@ async function runChitchat(
       verdict: "no_retrieval",
       rewritten_query: rewrite.standaloneQuery,
       sub_queries: rewrite.subQueries,
-      model: GEMINI_ANSWER_MODEL,
+      model: ANSWER_MODEL,
     })
     .select("id")
     .single();
@@ -313,20 +288,14 @@ async function runGrounded(
 
   push("stage", { stage: "generating" });
   const prompt = buildUserPrompt(rewrite.standaloneQuery, block);
-  const genStream = await generateStreamWithRetry({
-    model: GEMINI_ANSWER_MODEL,
-    contents: prompt,
-    config: { temperature: 0.1 },
-  });
+  const genStream = chatStream(ANSWER_MODEL, [{ role: "user", content: prompt }], { temperature: 0.1 });
 
   const generateStart = Date.now();
   let fullRaw = "";
   let pending = "";
   let verdictSeen = false;
 
-  for await (const chunk of genStream) {
-    const delta = chunk.text ?? "";
-    if (!delta) continue;
+  for await (const delta of genStream) {
     fullRaw += delta;
     if (verdictSeen) continue; // keep draining the stream, but the trailing VERDICT line is metadata, never shown
 
@@ -373,7 +342,7 @@ async function runGrounded(
       retrieval_ms: retrievalMs,
       rerank_ms: rerankMs,
       generate_ms: generateMs,
-      model: GEMINI_ANSWER_MODEL,
+      model: ANSWER_MODEL,
       retrieval: { candidateCount, evidenceCount: evidence.length },
       grounding: { uncitedRatio: parsed.uncitedRatio, invalidCitations: parsed.invalidMarkers },
     })

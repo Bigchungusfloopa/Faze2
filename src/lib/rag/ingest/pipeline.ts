@@ -1,13 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getObjectBytes } from "@/lib/storage";
-import { uploadAndWaitActive } from "@/lib/gemini/files";
-import { classifyAndExtract, classifyExtractedText, extractPlainText, type ClassifyExtractResult } from "./classify_extract";
+import { classifyExtractedText, extractPlainText, type ClassifyExtractResult } from "./classify_extract";
+import { extractImage, extractPdf } from "./visual";
 import { extractCsv, extractDocx, extractPptx, extractXlsx } from "./office";
 import { resolveFormat } from "./formats";
 import { contextualizeDocument, templatedContext, assembleContextHeader, type DocContext } from "./contextualize";
 import { chunkDocument } from "./chunk";
-import { embedDocuments } from "@/lib/gemini/embed";
-import { GEMINI_EMBED_MODEL } from "@/lib/gemini/models";
+import { embedTexts, hasMistralKey } from "@/lib/ai/mistral";
+import { EMBED_MODEL } from "@/lib/ai/models";
 import type { DocStage } from "@/types/rag";
 
 /**
@@ -47,7 +47,7 @@ export async function runIngestion(documentId: string): Promise<void> {
   const ownerId = doc.owner_id as string;
 
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!hasMistralKey()) {
       await runStub(db, documentId, ownerId);
       return;
     }
@@ -89,20 +89,17 @@ async function runReal(
   switch (format) {
     case "xlsx":
       extracted = await classifyExtractedText(await extractXlsx(bytes), filename, "spreadsheet", {
-        docKind: "table_dataset",
-        reason: "Excel workbook: each sheet read directly as structured tables.",
+        fixed: { docKind: "table_dataset", reason: "Excel workbook: each sheet read directly as structured tables." },
       });
       break;
     case "csv":
       extracted = await classifyExtractedText(extractCsv(bytes, filename), filename, "spreadsheet", {
-        docKind: "table_dataset",
-        reason: "Delimited data file: parsed directly into row-group tables.",
+        fixed: { docKind: "table_dataset", reason: "Delimited data file: parsed directly into row-group tables." },
       });
       break;
     case "pptx":
       extracted = await classifyExtractedText(await extractPptx(bytes), filename, "presentation", {
-        docKind: "lecture_slides",
-        reason: "PowerPoint deck: one page per slide, including speaker notes.",
+        fixed: { docKind: "lecture_slides", reason: "PowerPoint deck: one page per slide, including speaker notes." },
       });
       break;
     case "docx":
@@ -111,10 +108,23 @@ async function runReal(
     case "text":
       extracted = await classifyExtractedText(extractPlainText(bytes), filename, "plain_text");
       break;
-    default: {
-      const { uri } = await uploadAndWaitActive(bytes, mimeType, filename);
-      extracted = await classifyAndExtract(uri, mimeType, filename);
+    case "pdf": {
+      // Digital pages come from the PDF's own text layer; pages without one
+      // are rendered and transcribed by the vision model.
+      const pdf = await extractPdf(bytes);
+      extracted = await classifyExtractedText(pdf.pages, filename, pdf.textLayer === "born_digital" ? "native_text" : "vision_ocr", {
+        textLayer: pdf.textLayer,
+        pageMeta: pdf.pageMeta,
+      });
+      break;
     }
+    case "image": {
+      const img = await extractImage(bytes, mimeType);
+      extracted = await classifyExtractedText(img.pages, filename, "image_single", { textLayer: "scanned", pageMeta: img.pageMeta });
+      break;
+    }
+    default:
+      throw new Error(`Unsupported file type: ${mimeType}`);
   }
   if (extracted.pages.length === 0) throw new Error("No extractable content found in this file.");
   await logEvent(db, documentId, ownerId, "classifying", "ok", `${extracted.docKind} / ${extracted.pipeline}`);
@@ -161,7 +171,7 @@ async function runReal(
 
   await setStage(db, documentId, "embedding", 90);
   const embedInputs = chunks.map((c, i) => `${contextHeaders[i]}\n\n${c.content}`);
-  const vectors = await embedDocuments(embedInputs, extracted.title || filename);
+  const vectors = await embedTexts(embedInputs);
   await logEvent(db, documentId, ownerId, "embedding", "ok", `${vectors.length} vectors`);
 
   const rows = chunks.map((c, i) => ({
@@ -177,7 +187,7 @@ async function runReal(
     heading: c.heading,
     token_count: c.tokenCount,
     embedding: vectors[i],
-    embedding_model: GEMINI_EMBED_MODEL,
+    embedding_model: EMBED_MODEL,
   }));
 
   // Clear any prior generation's chunks before writing the new one -- keeps
@@ -205,7 +215,7 @@ async function setStage(db: AdminClient, documentId: string, stage: DocStage, pc
   await db.from("documents").update({ stage, progress_pct: pct, stage_detail: detail ?? null }).eq("id", documentId);
 }
 
-// --- Stub, used only when GEMINI_API_KEY is absent --------------------------
+// --- Stub, used only when MISTRAL_API_KEY is absent --------------------------
 
 const STUB_STAGES: Array<{ stage: DocStage; pct: number; ms: number }> = [
   { stage: "classifying", pct: 15, ms: 500 },
@@ -215,7 +225,7 @@ const STUB_STAGES: Array<{ stage: DocStage; pct: number; ms: number }> = [
   { stage: "embedding", pct: 95, ms: 500 },
 ];
 
-const STUB_DETAIL = "Stub run — set GEMINI_API_KEY to ingest real content.";
+const STUB_DETAIL = "Stub run — set MISTRAL_API_KEY to ingest real content.";
 
 async function runStub(db: AdminClient, documentId: string, ownerId: string) {
   for (const step of STUB_STAGES) {

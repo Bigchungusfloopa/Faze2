@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
-import { embedQuery } from "@/lib/gemini/embed";
+import { embedTexts } from "@/lib/ai/mistral";
+import { EMBED_MODEL } from "@/lib/ai/models";
 
 /**
  * Caches ONLY the query embedding, not retrieval results.
@@ -18,15 +19,17 @@ import { embedQuery } from "@/lib/gemini/embed";
  * client (a real RLS-bypass surface, for a latency optimization).
  *
  * Query embedding has neither problem: it is a pure, deterministic function
- * of (model, dimension, task type, text) with no user context at all, so
+ * of (model, text) with no user context at all, so
  * caching it is free correctness-wise -- a hit is by definition identical to
  * a recompute. That is the one piece of "faster queries, no false
  * accuracies" this system takes on; retrieval itself runs fresh on every
  * request, which trivially satisfies "never stale" by not caching what could
  * go stale.
  */
+// The model name is part of the key so switching embedding models can never
+// serve a vector from the old model's space (different size and meaning).
 export const cachedEmbedQuery = unstable_cache(
-  async (text: string) => embedQuery(text),
-  ["rag-embed-query"],
+  async (text: string) => (await embedTexts([text]))[0],
+  ["rag-embed-query", EMBED_MODEL],
   { revalidate: 60 * 60 * 24 * 7 } // 7 days -- the model is fixed, so a hit never goes wrong
 );
