@@ -1,11 +1,12 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
 import { deleteObject } from "@/lib/storage"
 import { requireUser } from "@/lib/auth"
 
-async function requireModuleRole(supabase: any, moduleId: string, userId: string) {
+async function requireModuleRole(supabase: SupabaseClient, moduleId: string, userId: string) {
   const { data: member } = await supabase
     .from("community_members")
     .select("role")
@@ -342,7 +343,7 @@ export async function updateModuleVaultItem(
 
 // ─── Module (Community) Vault: Folders ────────────────────────────────────────
 
-async function verifyModuleOrganizerRole(supabase: any, moduleId: string, userId: string) {
+async function verifyModuleOrganizerRole(supabase: SupabaseClient, moduleId: string, userId: string) {
   const role = await requireModuleRole(supabase, moduleId, userId)
   if (role !== "owner" && role !== "curator") {
     throw new Error("Forbidden: You must be an owner or curator to organize folders.")

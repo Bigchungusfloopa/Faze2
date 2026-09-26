@@ -20,7 +20,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ data: folders })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal Server Error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

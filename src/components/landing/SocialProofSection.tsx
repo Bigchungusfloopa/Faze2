@@ -69,7 +69,7 @@ export default function SocialProofSection() {
               className="social-proof-card w-[320px] md:w-[400px] shrink-0 bg-card dark:bg-[#1E1D1A] border-2 border-foreground rounded-[1.5rem] p-6 sm:p-8 shadow-[4px_4px_0px_black] whitespace-normal flex flex-col"
             >
               <p className="social-proof-quote font-sans italic text-lg text-foreground mb-6 flex-1">
-                "{q.quote}"
+                &ldquo;{q.quote}&rdquo;
               </p>
               <div>
                 <p className="social-proof-name font-mono font-bold text-foreground text-sm">{q.name}</p>

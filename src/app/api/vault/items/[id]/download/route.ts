@@ -37,15 +37,15 @@ export async function GET(
 
     if (action === "download") {
       const filename = vaultItem.files.filename || "file";
-      const mimeType = vaultItem.files.mime_type || undefined;
-      signedUrl = await getDownloadUrl(vaultItem.files.storage_key, filename, mimeType);
+      signedUrl = await getDownloadUrl(vaultItem.files.storage_key, filename);
     } else {
       signedUrl = await getViewUrl(vaultItem.files.storage_key);
     }
 
     return NextResponse.json({ url: signedUrl });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Download GET error:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

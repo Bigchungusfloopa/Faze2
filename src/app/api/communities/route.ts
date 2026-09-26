@@ -1,6 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+// Matches public.communities in supabase/migrations/0001_core_schema.sql.
+interface CommunityRow {
+  id: string
+  name: string
+  description: string | null
+  type: string
+  owner_id: string
+  banner_url: string | null
+  member_count: number
+  created_at: string
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient()
 
@@ -31,12 +43,12 @@ export async function GET(request: Request) {
     .select('community_id, role')
     .eq('user_id', user.id)
 
-  const membershipMap = new Map()
+  const membershipMap = new Map<string, string>()
   if (memberships) {
     memberships.forEach(m => membershipMap.set(m.community_id, m.role))
   }
 
-  const enhancedCommunities = communities.map((c: any) => ({
+  const enhancedCommunities = (communities as CommunityRow[]).map((c) => ({
     ...c,
     membership: membershipMap.has(c.id) ? { role: membershipMap.get(c.id) } : null
   }))

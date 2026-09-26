@@ -1,121 +1,73 @@
-import {
-  S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadObjectCommand,
-  type GetObjectCommandInput,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { STORAGE_BUCKET } from "@/lib/storage-constants";
 
-// Provider-agnostic object storage over the S3 API.
-//
-// Real AWS S3 when APP_S3_ENDPOINT is unset. Any S3-compatible host (Cloudflare
-// R2, MinIO, ...) when it is set. The provider is a config decision, not a code
-// one, so nothing here is named after a vendor.
-//
-// Env vars are prefixed APP_S3_ rather than AWS_ on purpose: AWS_ACCESS_KEY_ID,
-// AWS_SECRET_ACCESS_KEY and AWS_REGION are reserved by the Lambda runtime that
-// Vercel functions execute on, and the platform overwrites them with its own
-// execution-role values.
+// Object storage on Supabase Storage, replacing the earlier S3/R2 layer.
+// Every function here runs through the admin (secret-key) client, which
+// bypasses RLS and Storage policies entirely -- callers are responsible for
+// checking ownership/authorization before calling any of these, exactly as
+// they were with the S3 version. The bucket is private (no public policy);
+// every read is a signed URL minted here, server-side, after that check.
 
 const SIGNED_URL_TTL_SECONDS = 3600;
 
-let client: S3Client | null = null;
-
-function getClient(): S3Client {
-  if (client) return client;
-
-  const region = process.env.APP_S3_REGION;
-  const accessKeyId = process.env.APP_S3_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.APP_S3_SECRET_ACCESS_KEY;
-  const endpoint = process.env.APP_S3_ENDPOINT || undefined;
-
-  if (!region || !accessKeyId || !secretAccessKey) {
-    throw new Error(
-      "Object storage is not configured: APP_S3_REGION, APP_S3_ACCESS_KEY_ID and APP_S3_SECRET_ACCESS_KEY are required."
-    );
-  }
-
-  client = new S3Client({
-    region,
-    credentials: { accessKeyId, secretAccessKey },
-    ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
-  });
-  return client;
+function bucket() {
+  return createAdminClient().storage.from(STORAGE_BUCKET);
 }
 
-function bucket(): string {
-  const name = process.env.APP_S3_BUCKET;
-  if (!name) throw new Error("Object storage is not configured: APP_S3_BUCKET is required.");
-  return name;
-}
-
-export async function putObject(body: Buffer | Uint8Array, key: string, contentType: string) {
-  return getClient().send(
-    new PutObjectCommand({ Bucket: bucket(), Key: key, Body: body, ContentType: contentType })
-  );
+/** Server-side upload of bytes already in memory. Used by the vault's multipart upload route. */
+export async function putObject(body: Uint8Array, key: string, contentType: string) {
+  const { error } = await bucket().upload(key, Buffer.from(body), { contentType, upsert: false });
+  if (error) throw error;
 }
 
 export async function deleteObject(key: string) {
-  return getClient().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
+  const { error } = await bucket().remove([key]);
+  if (error) throw error;
 }
 
 export async function objectExists(key: string): Promise<boolean> {
-  try {
-    await getClient().send(new HeadObjectCommand({ Bucket: bucket(), Key: key }));
-    return true;
-  } catch {
-    return false;
-  }
+  const dir = key.split("/").slice(0, -1).join("/");
+  const name = key.split("/").pop()!;
+  const { data, error } = await bucket().list(dir, { search: name });
+  if (error) return false;
+  return !!data?.some((f) => f.name === name);
 }
 
 /** Fetches the whole object into memory. Used by the ingestion pipeline. */
 export async function getObjectBytes(key: string): Promise<Uint8Array> {
-  const res = await getClient().send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
-  if (!res.Body) throw new Error(`Object ${key} has no body`);
-  return res.Body.transformToByteArray();
+  const { data, error } = await bucket().download(key);
+  if (error || !data) throw error ?? new Error(`Object ${key} not found`);
+  return new Uint8Array(await data.arrayBuffer());
 }
 
-/** Presigned GET for viewing inline (browser decides how to render). */
-export async function getViewUrl(key: string) {
-  return getSignedUrl(getClient(), new GetObjectCommand({ Bucket: bucket(), Key: key }), {
-    expiresIn: SIGNED_URL_TTL_SECONDS,
-  });
-}
-
-/** Presigned GET that forces a download with the original filename. */
-export async function getDownloadUrl(key: string, originalFilename: string, mimeType?: string) {
-  // RFC 6266 / RFC 5987 compliant Content-Disposition:
-  // - filename="..."  : fallback for old browsers, must be ASCII-safe (encode spaces)
-  // - filename*=UTF-8''...  : full RFC 5987 encoding for modern browsers
-  const asciiFallback = originalFilename.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
-  const rfc5987Encoded = encodeURIComponent(originalFilename)
-    .replace(/'/g, "%27")
-    .replace(/\(/g, "%28")
-    .replace(/\)/g, "%29");
-
-  const disposition = `attachment; filename="${asciiFallback}"; filename*=UTF-8''${rfc5987Encoded}`;
-
-  const input: GetObjectCommandInput = {
-    Bucket: bucket(),
-    Key: key,
-    ResponseContentDisposition: disposition,
-    ...(mimeType ? { ResponseContentType: mimeType } : {}),
-  };
-
-  return getSignedUrl(getClient(), new GetObjectCommand(input), { expiresIn: SIGNED_URL_TTL_SECONDS });
+/** Signed GET for viewing inline. */
+export async function getViewUrl(key: string): Promise<string> {
+  const { data, error } = await bucket().createSignedUrl(key, SIGNED_URL_TTL_SECONDS);
+  if (error || !data) throw error ?? new Error("Failed to create signed URL");
+  return data.signedUrl;
 }
 
 /**
- * Presigned PUT so the browser uploads straight to the bucket. Sidesteps the
- * serverless request-body ceiling (~4.5 MB) that the multipart upload route
- * only survives by luck.
+ * Signed GET that forces a download with the given filename. Supabase
+ * Storage's `download` option sets Content-Disposition itself -- the manual
+ * RFC 6266/5987 header construction the S3 version needed is gone.
  */
-export async function getUploadUrl(key: string, contentType: string, ttlSeconds = 900) {
-  return getSignedUrl(
-    getClient(),
-    new PutObjectCommand({ Bucket: bucket(), Key: key, ContentType: contentType }),
-    { expiresIn: ttlSeconds }
-  );
+export async function getDownloadUrl(key: string, filename: string): Promise<string> {
+  const { data, error } = await bucket().createSignedUrl(key, SIGNED_URL_TTL_SECONDS, { download: filename });
+  if (error || !data) throw error ?? new Error("Failed to create signed URL");
+  return data.signedUrl;
+}
+
+/**
+ * A signed upload token for the browser to PUT bytes directly to the bucket,
+ * bypassing the server entirely. Unlike an S3 presigned PUT, the client must
+ * use the Supabase Storage SDK's `uploadToSignedUrl(path, token, file)` to
+ * consume this -- the wire format wraps the body in a way a raw fetch PUT to
+ * `signedUrl` does not replicate correctly, so only `path` and `token` are
+ * returned; the browser never needs the raw `signedUrl` itself.
+ */
+export async function getUploadToken(key: string): Promise<{ path: string; token: string }> {
+  const { data, error } = await bucket().createSignedUploadUrl(key);
+  if (error || !data) throw error ?? new Error("Failed to create signed upload URL");
+  return { path: data.path, token: data.token };
 }

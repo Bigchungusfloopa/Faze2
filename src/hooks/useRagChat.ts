@@ -39,7 +39,7 @@ export function useRagChat() {
   const [isStreaming, setIsStreaming] = useState(false)
   const conversationIdRef = useRef<string | null>(null)
 
-  const send = useCallback(async (text: string, documentIds?: string[]) => {
+  const send = useCallback(async (text: string, documentIds?: string[], workspaceId?: string | null) => {
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", text, sources: [], grounding: null, streaming: false, stage: null }
     const asstMsg: ChatMessage = { id: `a-${Date.now()}`, role: "assistant", text: "", sources: [], grounding: null, streaming: true, stage: "starting" }
     setMessages((prev) => [...prev, userMsg, asstMsg])
@@ -61,6 +61,7 @@ export function useRagChat() {
           message: text,
           conversationId: conversationIdRef.current,
           documentIds: documentIds && documentIds.length > 0 ? documentIds : undefined,
+          workspaceId: workspaceId ?? undefined,
         }),
       })
       if (!res.ok || !res.body) throw new Error(`Chat request failed (${res.status})`)
@@ -112,5 +113,13 @@ export function useRagChat() {
     }
   }, [])
 
-  return { messages, isStreaming, send }
+  // Conversations aren't scoped to a workspace in this pass -- switching
+  // scope mid-session must start a fresh conversation rather than silently
+  // mixing personal and workspace history into one thread's context.
+  const resetConversation = useCallback(() => {
+    conversationIdRef.current = null
+    setMessages([])
+  }, [])
+
+  return { messages, isStreaming, send, resetConversation }
 }

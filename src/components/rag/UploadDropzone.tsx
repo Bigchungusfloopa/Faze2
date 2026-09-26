@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { UploadCloud } from "lucide-react"
 import { useDragAndDrop } from "@/hooks/useDragAndDrop"
+import { createClient } from "@/lib/supabase/client"
+import { STORAGE_BUCKET } from "@/lib/storage-constants"
 import { cn } from "@/lib/utils"
 
 async function sha256Hex(file: File): Promise<string> {
@@ -15,7 +17,7 @@ async function sha256Hex(file: File): Promise<string> {
     .join("")
 }
 
-async function uploadOne(file: File) {
+async function uploadOne(file: File, workspaceId?: string) {
   const checksumSha256 = await sha256Hex(file)
 
   const prepRes = await fetch("/api/documents/upload-url", {
@@ -26,21 +28,22 @@ async function uploadOne(file: File) {
       mimeType: file.type || "application/octet-stream",
       sizeBytes: file.size,
       checksumSha256,
+      workspaceId,
     }),
   })
   if (!prepRes.ok) {
     throw new Error((await prepRes.json().catch(() => ({}))).error || `Could not start upload for ${file.name}`)
   }
-  const { documentId, duplicate, uploadUrl } = await prepRes.json()
+  const { documentId, duplicate, path, token } = await prepRes.json()
 
   if (duplicate) return { documentId, duplicate: true }
 
-  const putRes = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type || "application/octet-stream" },
-    body: file,
-  })
-  if (!putRes.ok) throw new Error(`Upload to storage failed for ${file.name}`)
+  // Supabase's signed-upload-URL flow is consumed through the SDK, not a raw
+  // fetch PUT to the signed URL -- the wire format (multipart/FormData
+  // wrapping, x-upsert header) is handled by uploadToSignedUrl itself.
+  const supabase = createClient()
+  const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).uploadToSignedUrl(path, token, file)
+  if (uploadError) throw new Error(`Upload to storage failed for ${file.name}: ${uploadError.message}`)
 
   const confirmRes = await fetch("/api/documents", {
     method: "POST",
@@ -54,13 +57,13 @@ async function uploadOne(file: File) {
   return { documentId, duplicate: false }
 }
 
-export function UploadDropzone() {
+export function UploadDropzone({ workspaceId }: { workspaceId?: string }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
 
   const upload = useMutation({
     mutationFn: async (files: File[]) => {
-      const results = await Promise.allSettled(files.map(uploadOne))
+      const results = await Promise.allSettled(files.map((f) => uploadOne(f, workspaceId)))
       return { results }
     },
     onSuccess: ({ results }) => {
@@ -69,7 +72,7 @@ export function UploadDropzone() {
       const succeeded = results.length - failures.length - duplicates
 
       if (succeeded > 0) toast.success(`${succeeded} document${succeeded === 1 ? "" : "s"} queued for ingestion.`)
-      if (duplicates > 0) toast.info(`${duplicates} file${duplicates === 1 ? "" : "s"} already in your corpus.`)
+      if (duplicates > 0) toast.info(`${duplicates} file${duplicates === 1 ? "" : "s"} already in this corpus.`)
       failures.forEach((f) => toast.error(f.reason?.message || "Upload failed."))
 
       queryClient.invalidateQueries({ queryKey: ["documents"] })

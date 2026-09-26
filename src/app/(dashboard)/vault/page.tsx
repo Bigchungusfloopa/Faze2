@@ -217,8 +217,8 @@ function NewFolderModal({
       onCreated()
       reset()
       onClose()
-    } catch (e: any) {
-      toast.error(e.message || "Could not create folder")
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not create folder")
     } finally {
       setIsCreating(false)
     }
@@ -308,18 +308,23 @@ function UploadModal({
   const folderInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
 
-  // Seed items when the modal is opened with pre-dropped files
+  // Seed items when the modal is opened with pre-dropped files.
+  // Deferred to a microtask rather than calling setItems directly in the
+  // effect body, which would set state synchronously within this render pass.
   useEffect(() => {
     if (isOpen && initialFiles.length > 0) {
-      setItems(initialFiles.map(f => ({
-        id: Math.random().toString(36).substring(7),
-        file: f,
-        customName: f.name,
-        tags: [],
-        relativePath: f.webkitRelativePath || "",
-        isTooLarge: f.size > MAX_FILE_SIZE,
-      })))
+      queueMicrotask(() => {
+        setItems(initialFiles.map(f => ({
+          id: Math.random().toString(36).substring(7),
+          file: f,
+          customName: f.name,
+          tags: [],
+          relativePath: f.webkitRelativePath || "",
+          isTooLarge: f.size > MAX_FILE_SIZE,
+        })))
+      })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -400,8 +405,8 @@ function UploadModal({
       onUploadComplete()
       queryClient.invalidateQueries({ queryKey: ["vaultFolders"] })
       handleClose()
-    } catch (e: any) {
-      toast.error(e.message || "Upload failed.", { id: toastId })
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Upload failed.", { id: toastId })
     } finally {
       setIsUploading(false)
     }
@@ -565,8 +570,8 @@ function AddLinkModal({
       toast.success("Link saved to Vault!")
       onAdded()
       handleClose()
-    } catch (err: any) {
-      toast.error(err.message || "Could not save link")
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Could not save link")
     } finally {
       setIsSaving(false)
     }
@@ -678,8 +683,8 @@ function EditModal({
       toast.success("File updated successfully!")
       onSaved()
       onClose()
-    } catch (e: any) {
-      toast.error(e.message || "Update failed")
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Update failed")
     } finally {
       setIsSaving(false)
     }
@@ -771,8 +776,8 @@ function MoveModal({
       toast.success("Moved successfully!")
       onMoved()
       onClose()
-    } catch (e: any) {
-      toast.error(e.message || "Failed to move item")
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to move item")
     } finally {
       setIsMoving(false)
     }
@@ -899,8 +904,8 @@ function FolderCard({
       await deleteVaultFolder(folder.id)
       toast.success("Folder deleted", { id: toastId })
       onDelete(folder)
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete", { id: toastId })
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete", { id: toastId })
       setIsDeleting(false)
     }
   }
@@ -909,7 +914,7 @@ function FolderCard({
     <div
       data-drop-target={folder.id}
       draggable={!selectionMode}
-      onDragStart={(e: any) => {
+      onDragStart={(e: React.DragEvent<HTMLDivElement>) => {
         e.stopPropagation()
         e.dataTransfer.setData("application/json", JSON.stringify({ type: "folder", id: folder.id }))
         e.dataTransfer.effectAllowed = "move"
@@ -1328,8 +1333,8 @@ function FileCard({
       } else {
         window.open(url, "_blank")
       }
-    } catch (e: any) {
-      toast.error(e.message || "Could not open file")
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not open file")
     } finally {
       setIsViewing(false)
     }
@@ -1345,8 +1350,8 @@ function FileCard({
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-    } catch (e: any) {
-      toast.error(e.message || "Download failed")
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Download failed")
     } finally {
       setIsDownloading(false)
     }
@@ -1361,8 +1366,8 @@ function FileCard({
       await deleteVaultItem(item.id)
       toast.success(item.item_type === "link" ? "Link deleted" : "File deleted", { id: toastId })
       onDelete()
-    } catch (e: any) {
-      toast.error(e.message || "Delete failed", { id: toastId })
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Delete failed", { id: toastId })
     } finally {
       setIsDeleting(false)
     }
@@ -1664,7 +1669,7 @@ export default function VaultPage() {
       queryClient.invalidateQueries({ queryKey: ["vaultItems"] })
       queryClient.invalidateQueries({ queryKey: ["vaultFolders"] })
       clearSelection()
-    } catch (e: any) {
+    } catch {
       toast.error("Failed to delete some items", { id: toastId })
     }
   }
@@ -1696,9 +1701,9 @@ export default function VaultPage() {
   // Extract unique communities the user's files are shared with
   const availableCommunities = useMemo(() => {
     const map = new Map<string, string>()
-    vaultItems.forEach((item: any) => {
+    vaultItems.forEach((item) => {
       if (item.community_vault_items && Array.isArray(item.community_vault_items)) {
-        item.community_vault_items.forEach((cvi: any) => {
+        item.community_vault_items.forEach((cvi) => {
           if (cvi.communities?.name) {
             map.set(cvi.community_id, cvi.communities.name)
           }
@@ -1718,12 +1723,12 @@ export default function VaultPage() {
     let match = true;
 
     if (selectedCommunityFilter === "PERSONAL_ONLY") {
-      const belongsToAnyComm = Array.isArray((item as any).community_vault_items) &&
-        (item as any).community_vault_items.length > 0;
+      const belongsToAnyComm = Array.isArray(item.community_vault_items) &&
+        item.community_vault_items.length > 0;
       if (belongsToAnyComm) match = false;
     } else if (selectedCommunityFilter) {
-      const belongsToComm = Array.isArray((item as any).community_vault_items) &&
-        (item as any).community_vault_items.some((cvi: any) => cvi.community_id === selectedCommunityFilter);
+      const belongsToComm = Array.isArray(item.community_vault_items) &&
+        item.community_vault_items.some((cvi) => cvi.community_id === selectedCommunityFilter);
       if (!belongsToComm) match = false;
     }
 
@@ -1792,8 +1797,8 @@ export default function VaultPage() {
       } else {
         queryClient.invalidateQueries({ queryKey: ["vaultFolders"] })
       }
-    } catch (e: any) {
-      toast.error(e.message || "Failed to move", { id: toastId })
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to move", { id: toastId })
     }
   }, [queryClient])
 

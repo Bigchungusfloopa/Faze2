@@ -59,8 +59,25 @@ export async function POST(request: NextRequest) {
   const message = (body?.message as string | undefined)?.trim();
   const conversationId = body?.conversationId as string | undefined;
   const documentIds = (body?.documentIds as string[] | undefined) ?? null;
+  const workspaceId = (body?.workspaceId as string | undefined) || null;
 
   if (!message) return new Response(JSON.stringify({ error: "message is required" }), { status: 400 });
+
+  // Fail fast with a clear message rather than a silently-empty retrieval --
+  // hybrid_search_chunks would just return nothing for a workspace the
+  // caller isn't in (RLS), which looks identical to "the workspace has no
+  // relevant documents" from the client's side.
+  if (workspaceId) {
+    const { data: membership } = await supabase
+      .from("workspace_members")
+      .select("workspace_id")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "You are not a member of that workspace." }), { status: 403 });
+    }
+  }
 
   let convId = conversationId;
   if (!convId) {
@@ -92,7 +109,7 @@ export async function POST(request: NextRequest) {
       const finish = () => controller.close();
 
       try {
-        await runTurn({ supabase, userId: user.id, conversationId: convId!, message, history, documentIds, push });
+        await runTurn({ supabase, userId: user.id, conversationId: convId!, message, history, documentIds, workspaceId, push });
       } catch (err) {
         push("stage", { stage: "error", message: err instanceof Error ? err.message : String(err) });
       } finally {
@@ -115,9 +132,10 @@ async function runTurn(args: {
   message: string;
   history: HistoryTurn[];
   documentIds: string[] | null;
+  workspaceId: string | null;
   push: Push;
 }) {
-  const { supabase, userId, conversationId, message, history, documentIds, push } = args;
+  const { supabase, userId, conversationId, message, history, documentIds, workspaceId, push } = args;
 
   push("stage", { stage: "rewriting", conversationId });
   const rewrite = await rewriteQuery(message, history);
@@ -129,7 +147,7 @@ async function runTurn(args: {
 
   push("stage", { stage: "retrieving", subQueries: rewrite.subQueries });
   const retrievalStart = Date.now();
-  const candidates = await retrieveMulti(supabase, rewrite.subQueries, documentIds, 40);
+  const candidates = await retrieveMulti(supabase, rewrite.subQueries, documentIds, 40, workspaceId);
   const retrievalMs = Date.now() - retrievalStart;
 
   push("stage", { stage: "reranking" });

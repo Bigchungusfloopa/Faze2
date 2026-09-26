@@ -8,8 +8,8 @@ import { useRagChat } from "@/hooks/useRagChat"
 import { MessageBubble } from "./MessageBubble"
 import { CitationRail } from "./CitationRail"
 
-export function ChatPanel({ documentIds }: { documentIds?: string[] }) {
-  const { messages, isStreaming, send } = useRagChat()
+export function ChatPanel({ documentIds, workspaceId }: { documentIds?: string[]; workspaceId?: string | null }) {
+  const { messages, isStreaming, send, resetConversation } = useRagChat()
   const [input, setInput] = useState("")
   const [activeMarker, setActiveMarker] = useState<number | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -18,13 +18,20 @@ export function ChatPanel({ documentIds }: { documentIds?: string[] }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  // Conversations aren't workspace-scoped yet -- switching the active scope
+  // must start a fresh thread rather than continuing one whose history was
+  // built under a different scope.
+  useEffect(() => {
+    resetConversation()
+  }, [workspaceId, resetConversation])
+
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant")
 
   const handleSend = () => {
     const text = input.trim()
     if (!text || isStreaming) return
     setInput("")
-    void send(text, documentIds)
+    void send(text, documentIds, workspaceId)
   }
 
   const handleCitationClick = (marker: number) => {

@@ -71,7 +71,7 @@ export default function FinalCtaSection() {
 
         <Link href="/signup">
           <button className="bg-[#FFD600] border-[3px] border-foreground font-display font-bold text-foreground rounded-[14px] shadow-[6px_6px_0px_black] hover:translate-x-[6px] hover:translate-y-[6px] hover:shadow-none hover:bg-[#FFD600]/90 transition-all h-16 px-10 text-xl flex items-center justify-center -ml-[3px]">
-            Get Started Free — It's Free
+            Get Started Free — It&apos;s Free
           </button>
         </Link>
 

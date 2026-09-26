@@ -55,10 +55,12 @@ export async function POST(request: Request) {
 }
 
 /**
- * List the caller's documents. ?status=active restricts to rows still moving
- * through the pipeline (pending_upload/queued/processing) -- the query the
- * pipeline-status poller in the UI runs every ~1.5s so it can stop once
- * nothing is left in flight.
+ * List documents in one scope: the caller's personal corpus (default), or a
+ * workspace's shared corpus when ?workspaceId= is given -- these are two
+ * disjoint sets by design, never mixed in one response. ?status=active
+ * restricts to rows still moving through the pipeline
+ * (pending_upload/queued/processing), which the pipeline-status poller in
+ * the UI runs every ~1.5s so it can stop once nothing is left in flight.
  */
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -69,15 +71,21 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const statusFilter = searchParams.get("status");
+  const workspaceId = searchParams.get("workspaceId");
 
   let query = supabase
     .from("documents")
     .select(
       "id, title, source_filename, mime_type, size_bytes, status, stage, progress_pct, " +
-        "stage_detail, error, doc_kind, pipeline, page_count, chunk_count, created_at, updated_at"
+        "stage_detail, error, doc_kind, pipeline, page_count, chunk_count, workspace_id, " +
+        "owner_id, created_at, updated_at"
     )
-    .eq("owner_id", user.id)
     .order("created_at", { ascending: false });
+
+  // RLS (documents_select) restricts a workspace-scoped query to actual
+  // members regardless of this filter -- it's applied for a correct empty
+  // result rather than an opaque permission error when it's omitted.
+  query = workspaceId ? query.eq("workspace_id", workspaceId) : query.eq("owner_id", user.id).is("workspace_id", null);
 
   if (statusFilter === "active") {
     query = query.in("status", ["pending_upload", "queued", "processing"]);

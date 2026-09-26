@@ -3,6 +3,20 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getViewUrl, getDownloadUrl } from "@/lib/storage";
 
+interface FileRow {
+  storage_key: string
+  filename: string | null
+  mime_type: string | null
+}
+
+// PostgREST returns an embedded relation as an object or an array depending
+// on the FK cardinality it infers, so both shapes are handled defensively
+// below rather than assumed.
+interface VaultItemRow {
+  id: string
+  files: FileRow | FileRow[] | null
+}
+
 export async function GET(request: Request, context: { params: Promise<{ id: string, itemId: string }> }) {
   try {
     const supabase = await createClient()
@@ -44,11 +58,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       .eq('community_id', communityId)
       .single()
 
-    const vItem: any = Array.isArray(sharedItem?.vault_item) 
-       ? sharedItem.vault_item[0] 
+    const vItem: VaultItemRow | undefined = Array.isArray(sharedItem?.vault_item)
+       ? sharedItem.vault_item[0]
        : sharedItem?.vault_item
 
-    const file: any = Array.isArray(vItem?.files) ? vItem.files[0] : vItem?.files
+    const file: FileRow | undefined = vItem
+      ? (Array.isArray(vItem.files) ? vItem.files[0] : vItem.files ?? undefined)
+      : undefined
 
     if (fetchError || !sharedItem || !vItem || !file) {
       return NextResponse.json({ error: "File not found or missing physical data" }, { status: 404 })
@@ -56,14 +72,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     let signedUrl: string
     if (action === "download") {
-      signedUrl = await getDownloadUrl(file.storage_key, file.filename || "file", file.mime_type || undefined)
+      signedUrl = await getDownloadUrl(file.storage_key, file.filename || "file")
     } else {
       signedUrl = await getViewUrl(file.storage_key)
     }
 
     return NextResponse.json({ url: signedUrl })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Community Download GET error:", error)
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Internal server error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

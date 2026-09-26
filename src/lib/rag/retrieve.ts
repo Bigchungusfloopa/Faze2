@@ -64,12 +64,19 @@ function mapRow(r: RpcRow): RetrievedChunk {
  * One sub-query's hybrid search. Must be called with the user's cookie-scoped
  * client -- hybrid_search_chunks is SECURITY INVOKER and reads auth.uid()
  * internally, so the admin client would fail its own auth check.
+ *
+ * `workspaceId` omitted or null scopes to the caller's personal corpus only
+ * (chunks with no workspace, owned by them); set, it scopes to that
+ * workspace's shared corpus only -- never both in one call. See
+ * 0006_hybrid_search_workspace_scope.sql for why these two scopes can never
+ * leak into each other.
  */
 export async function retrieveForQuery(
   supabase: SupabaseClient,
   query: string,
   documentIds: string[] | null,
-  matchCount = 40
+  matchCount = 40,
+  workspaceId?: string | null
 ): Promise<RetrievedChunk[]> {
   const embedding = await cachedEmbedQuery(query);
 
@@ -78,6 +85,7 @@ export async function retrieveForQuery(
     p_query_embedding: embedding,
     p_document_ids: documentIds && documentIds.length > 0 ? documentIds : null,
     p_match_count: matchCount,
+    p_workspace_id: workspaceId ?? null,
   });
 
   if (error) throw new Error(`hybrid_search_chunks failed: ${error.message}`);
@@ -108,10 +116,11 @@ export async function retrieveMulti(
   supabase: SupabaseClient,
   subQueries: string[],
   documentIds: string[] | null,
-  matchCount = 40
+  matchCount = 40,
+  workspaceId?: string | null
 ): Promise<RetrievedChunk[]> {
   const perQueryResults = await Promise.all(
-    subQueries.map((q) => retrieveForQuery(supabase, q, documentIds, matchCount))
+    subQueries.map((q) => retrieveForQuery(supabase, q, documentIds, matchCount, workspaceId))
   );
 
   // Fuse: sum RRF scores for a chunk that appears under multiple sub-queries.

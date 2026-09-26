@@ -301,7 +301,7 @@ export default function SetupPage() {
                       </Button>
                     </div>
                     <p className="font-sans text-[12px] text-muted-foreground/70 mt-1">
-                      Press enter or click '+' to add to your interests.
+                      Press enter or click &apos;+&apos; to add to your interests.
                     </p>
                   </div>
                   

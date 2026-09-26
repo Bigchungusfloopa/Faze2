@@ -7,7 +7,7 @@ export default function ProblemSection() {
       {/* The Problem */}
       <div className="flex flex-col items-center w-full max-w-4xl px-4 text-center mb-16 md:mb-24">
         <h2 className="font-display font-extrabold text-4xl sm:text-5xl text-foreground z-20 mb-16">
-          You're juggling too many apps.
+          You&apos;re juggling too many apps.
         </h2>
 
         {/* The Icons Cluster (Static Pile) */}

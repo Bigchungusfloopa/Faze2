@@ -28,8 +28,25 @@ import {
   deleteModule
 } from "@/actions/modules"
 
+interface CommunityMember {
+  id: string
+  name: string
+  email: string
+  profile_pic: string | null
+  role: string
+}
+
+interface Community {
+  id: string
+  name: string
+  description: string | null
+  type: string
+  banner_url: string | null
+  membership?: { user_id: string }
+}
+
 interface CommunitySettingsModalProps {
-  community: any
+  community: Community
   currentUserRole?: string
 }
 
@@ -37,7 +54,7 @@ export function CommunitySettingsModal({ community, currentUserRole }: Community
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("general")
-  
+
   // General Tab State
   const [name, setName] = useState(community.name)
   const [description, setDescription] = useState(community.description || "")
@@ -46,7 +63,7 @@ export function CommunitySettingsModal({ community, currentUserRole }: Community
   const [isUpdatingDetails, setIsUpdatingDetails] = useState(false)
 
   // Members Tab State
-  const [members, setMembers] = useState<any[]>([])
+  const [members, setMembers] = useState<CommunityMember[]>([])
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
   const [mutatingMemberId, setMutatingMemberId] = useState<string | null>(null)
 
@@ -55,27 +72,45 @@ export function CommunitySettingsModal({ community, currentUserRole }: Community
 
   const isOwner = currentUserRole === "owner"
 
-  // Only owners can access settings
-  if (!isOwner) return null
-
-  // Fetch members when opening members tab
-  useEffect(() => {
-    if (open && activeTab === "members" && members.length === 0) {
-      loadMembers()
-    }
-  }, [open, activeTab])
-
+  // Declared before the effect that calls it -- `const` bindings are not
+  // hoisted, so the previous order only worked because the effect callback
+  // doesn't run until after the whole component body has executed once.
+  // Correct today by accident of timing, and exactly the kind of ordering
+  // that breaks the moment either piece is refactored.
   const loadMembers = async () => {
     setIsLoadingMembers(true)
     try {
       const data = await getModuleMembers(community.id)
       setMembers(data)
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to load members")
     } finally {
       setIsLoadingMembers(false)
     }
   }
+
+  // Fetch members when opening members tab
+  useEffect(() => {
+    if (open && activeTab === "members" && members.length === 0) {
+      // loadMembers's first statement is setIsLoadingMembers(true); calling
+      // it directly here would run that setState synchronously within the
+      // effect's own render pass. Deferring to a microtask keeps the fetch
+      // triggered by the same effect without that cascading-render cost.
+      queueMicrotask(() => { loadMembers() })
+    }
+    // loadMembers is intentionally omitted: it's redefined every render and
+    // including it would re-run this effect on every keystroke elsewhere in
+    // the component. members.length is read only to avoid a redundant fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, activeTab])
+
+  // The early return below is AFTER every hook has been called, which is
+  // what Rules of Hooks actually requires -- it used to sit before the
+  // useEffect above, which is a real hooks-order violation: if
+  // currentUserRole ever changes from non-owner to owner between renders
+  // (e.g. it loads asynchronously), React sees a different number of hooks
+  // called and either throws or silently corrupts hook state.
+  if (!isOwner) return null
 
   const handleUpdateDetails = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -287,12 +322,6 @@ export function CommunitySettingsModal({ community, currentUserRole }: Community
 
                   <div className="space-y-3">
                     {members.map(member => {
-                      const isMe = member.id === community.membership?.user_id // Assuming we pass this prop fully or handle it. Might need a currentUserId prop if not available.
-                      // Actually, let's just check if role is owner. The current user IS the owner.
-                      // More robust: we can't change 'owner' role easily this way.
-                      isMe; // Silence unused warning
-
-                      
                       const isTargetOwner = member.role === 'owner'
                       const isMutating = mutatingMemberId === member.id
 
