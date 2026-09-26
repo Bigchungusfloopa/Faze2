@@ -1,0 +1,455 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: light;
+  --background: oklch(0.972 0.012 102);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.86 0.18 95);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.93 0.014 102);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.93 0.014 102);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.86 0.18 95);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.86 0.014 102);
+  --input: oklch(0.86 0.014 102);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.18 0.005 100);
+  --foreground: oklch(0.965 0.006 102);
+  --card: oklch(0.235 0.007 100);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.235 0.007 100);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.88 0.18 95);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.31 0.008 100);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.31 0.008 100);
+  --muted-foreground: oklch(0.76 0.006 102);
+  --accent: oklch(0.88 0.18 95);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 18%);
+  --input: oklch(1 0 0 / 18%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.22 0.006 100);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+
+  .dark * {
+    border-color: #000000 !important;
+  }
+
+  .dark :where(body, h1, h2, h3, h4, h5, h6, p, span, a, button, label, input, textarea, select, option, li, td, th, div) {
+    color: #ffffff;
+  }
+
+  .dark svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+  }
+
+  .dark :where(
+    [class*="bg-white"],
+    [class*="bg-[#FFFFFF]"],
+    [class*="bg-[#FFD600]"],
+    [class*="bg-[#FF9500]"],
+    [class*="bg-[#FF6B00]"],
+    [class*="bg-[#00C853]"],
+    [class*="bg-[#00E676]"],
+    [class*="bg-[#E"],
+    [class*="bg-[#D"],
+    [class*="bg-[#F0"],
+    [class*="bg-[#EEF"],
+    [class*="bg-[#FFF"],
+    [class*="bg-muted"],
+    [class*="bg-primary"],
+    .light-surface
+  ),
+  .dark :where(
+    [class*="bg-white"],
+    [class*="bg-[#FFFFFF]"],
+    [class*="bg-[#FFD600]"],
+    [class*="bg-[#FF9500]"],
+    [class*="bg-[#FF6B00]"],
+    [class*="bg-[#00C853]"],
+    [class*="bg-[#00E676]"],
+    [class*="bg-[#E"],
+    [class*="bg-[#D"],
+    [class*="bg-[#F0"],
+    [class*="bg-[#EEF"],
+    [class*="bg-[#FFF"],
+    [class*="bg-muted"],
+    [class*="bg-primary"],
+    .light-surface
+  ) :where(*) {
+    color: #000000 !important;
+  }
+
+  .dark :where(
+    [class*="bg-white"],
+    [class*="bg-[#FFFFFF]"],
+    [class*="bg-[#FFD600]"],
+    [class*="bg-[#FF9500]"],
+    [class*="bg-[#FF6B00]"],
+    [class*="bg-[#00C853]"],
+    [class*="bg-[#00E676]"],
+    [class*="bg-[#E"],
+    [class*="bg-[#D"],
+    [class*="bg-[#F0"],
+    [class*="bg-[#EEF"],
+    [class*="bg-[#FFF"],
+    [class*="bg-muted"],
+    [class*="bg-primary"],
+    .light-surface
+  ) svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+  }
+
+  .dark .viewer-chrome,
+  .dark .viewer-chrome :where(*) {
+    color: #ffffff !important;
+  }
+
+  .dark .viewer-chrome svg {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+  }
+
+  .dark .viewer-chrome .viewer-file-icon,
+  .dark .viewer-chrome .viewer-file-icon :where(*) {
+    color: #000000 !important;
+  }
+
+  .dark .viewer-chrome .viewer-file-icon svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+  }
+
+
+  /* Restore white text for dark-mode cards/backgrounds nested inside colored sections.
+     The rules above force black text on ALL descendants of light-colored parents
+     (e.g. bg-[#FFD600]), but bg-card and bg-background are dark in dark mode,
+     so their text must be white regardless of the parent. */
+  .dark [class*="bg-card"],
+  .dark [class*="bg-card"] :where(*) {
+    color: var(--foreground) !important;
+  }
+
+  .dark [class*="bg-background"],
+  .dark [class*="bg-background"] :where(*) {
+    color: var(--foreground) !important;
+  }
+
+  /* SVGs inside dark cards should also use foreground color */
+  .dark [class*="bg-card"] svg,
+  .dark [class*="bg-background"] svg {
+    color: var(--foreground) !important;
+    stroke: var(--foreground) !important;
+  }
+
+  .dark svg[class*="text-[#0057FF]"] {
+    color: #0057FF !important;
+    stroke: #0057FF !important;
+  }
+
+  .dark svg[class*="text-[#FF3CAC]"] {
+    color: #FF3CAC !important;
+    stroke: #FF3CAC !important;
+  }
+
+  .dark svg[class*="text-[#FFD600]"] {
+    color: #FFD600 !important;
+    stroke: #FFD600 !important;
+  }
+
+  .dark svg[class*="text-[#FF3B30]"] {
+    color: #FF3B30 !important;
+    stroke: #FF3B30 !important;
+  }
+
+  .dark svg[class*="text-[#4285F4]"] {
+    color: #4285F4 !important;
+    stroke: #4285F4 !important;
+  }
+
+  .dark svg[class*="text-[#00C853]"] {
+    color: #00C853 !important;
+    stroke: #00C853 !important;
+  }
+
+  .dark svg[class*="text-[#FF6B00]"] {
+    color: #FF6B00 !important;
+    stroke: #FF6B00 !important;
+  }
+
+  .dark :where(
+    [class~="bg-[#FFD600]"],
+    [class~="bg-[#FFD600]/90"],
+    [class~="bg-[#FFD600]/20"],
+    [class~="bg-[#FFD600]/10"],
+    [class~="bg-yellow-300"],
+    [class~="bg-primary"],
+    .light-surface
+  ),
+  .dark :where(
+    [class~="bg-[#FFD600]"],
+    [class~="bg-[#FFD600]/90"],
+    [class~="bg-[#FFD600]/20"],
+    [class~="bg-[#FFD600]/10"],
+    [class~="bg-yellow-300"],
+    [class~="bg-primary"],
+    .light-surface
+  ) :where(*) {
+    color: #000000 !important;
+  }
+
+  .dark :where(
+    [class~="bg-[#FFD600]"],
+    [class~="bg-[#FFD600]/90"],
+    [class~="bg-[#FFD600]/20"],
+    [class~="bg-[#FFD600]/10"],
+    [class~="bg-yellow-300"],
+    [class~="bg-primary"],
+    .light-surface
+  ) svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+  }
+
+  .dark :where(
+    [class~="bg-[#FFD600]"],
+    [class~="bg-[#FFD600]/90"],
+    [class~="bg-[#FFD600]/20"],
+    [class~="bg-[#FFD600]/10"],
+    [class~="bg-yellow-300"],
+    [class~="bg-primary"],
+    .light-surface
+  ) :where([class*="bg-card"], [class*="bg-card"] *, [class*="bg-background"], [class*="bg-background"] *) {
+    color: var(--foreground) !important;
+  }
+
+  .dark :where([class*="bg-foreground"][class*="text-[#FFD600]"]),
+  .dark :where([class*="bg-foreground"] [class*="text-[#FFD600]"]) {
+    color: #FFD600 !important;
+  }
+
+  .dark .bg-\[\#FFD600\],
+  .dark .bg-\[\#FFD600\] :where(*),
+  .dark .bg-\[\#FFD600\]\/90,
+  .dark .bg-\[\#FFD600\]\/90 :where(*),
+  .dark .bg-\[\#FFD600\]\/20,
+  .dark .bg-\[\#FFD600\]\/20 :where(*),
+  .dark .bg-\[\#FFD600\]\/10,
+  .dark .bg-\[\#FFD600\]\/10 :where(*),
+  .dark .bg-yellow-300,
+  .dark .bg-yellow-300 :where(*),
+  .dark .bg-primary,
+  .dark .bg-primary :where(*) {
+    color: #000000 !important;
+  }
+
+  .dark .bg-\[\#FFD600\] svg,
+  .dark .bg-\[\#FFD600\]\/90 svg,
+  .dark .bg-\[\#FFD600\]\/20 svg,
+  .dark .bg-\[\#FFD600\]\/10 svg,
+  .dark .bg-yellow-300 svg,
+  .dark .bg-primary svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+  }
+
+  .dark .hover\:bg-\[\#FFD600\]:hover,
+  .dark .hover\:bg-\[\#FFD600\]:hover :where(*),
+  .dark .hover\:bg-\[\#FFD600\]\/90:hover,
+  .dark .hover\:bg-\[\#FFD600\]\/90:hover :where(*),
+  .dark .hover\:bg-yellow-300:hover,
+  .dark .hover\:bg-yellow-300:hover :where(*),
+  .dark .group:hover .group-hover\:bg-\[\#FFD600\],
+  .dark .group:hover .group-hover\:bg-\[\#FFD600\] :where(*) {
+    color: #000000 !important;
+  }
+
+  .dark .hover\:bg-\[\#FFD600\]:hover svg,
+  .dark .hover\:bg-\[\#FFD600\]\/90:hover svg,
+  .dark .hover\:bg-yellow-300:hover svg,
+  .dark .group:hover .group-hover\:bg-\[\#FFD600\] svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+  }
+
+  /* But the theme toggle always uses foreground (keep it last so it wins) */
+  .dark .theme-toggle svg {
+    color: var(--foreground) !important;
+    stroke: var(--foreground) !important;
+  }
+}
+
+.dark .bg-\[\#FFD600\],
+.dark .bg-\[\#FFD600\] :where(*),
+.dark .bg-\[\#FFD600\]\/90,
+.dark .bg-\[\#FFD600\]\/90 :where(*),
+.dark .bg-\[\#FFD600\]\/20,
+.dark .bg-\[\#FFD600\]\/20 :where(*),
+.dark .bg-\[\#FFD600\]\/10,
+.dark .bg-\[\#FFD600\]\/10 :where(*),
+.dark .bg-yellow-300,
+.dark .bg-yellow-300 :where(*),
+.dark .bg-primary,
+.dark .bg-primary :where(*),
+.dark .light-surface,
+.dark .light-surface :where(*) {
+  color: #000000 !important;
+}
+
+.dark .bg-\[\#FFD600\] svg,
+.dark .bg-\[\#FFD600\]\/90 svg,
+.dark .bg-\[\#FFD600\]\/20 svg,
+.dark .bg-\[\#FFD600\]\/10 svg,
+.dark .bg-yellow-300 svg,
+.dark .bg-primary svg,
+.dark .light-surface svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+.dark .hover\:bg-\[\#FFD600\]:hover,
+.dark .hover\:bg-\[\#FFD600\]:hover :where(*),
+.dark .hover\:bg-\[\#FFD600\]\/90:hover,
+.dark .hover\:bg-\[\#FFD600\]\/90:hover :where(*),
+.dark .hover\:bg-yellow-300:hover,
+.dark .hover\:bg-yellow-300:hover :where(*),
+.dark .group:hover .group-hover\:bg-\[\#FFD600\],
+.dark .group:hover .group-hover\:bg-\[\#FFD600\] :where(*) {
+  color: #000000 !important;
+}
+
+.dark .hover\:bg-\[\#FFD600\]:hover svg,
+.dark .hover\:bg-\[\#FFD600\]\/90:hover svg,
+.dark .hover\:bg-yellow-300:hover svg,
+.dark .group:hover .group-hover\:bg-\[\#FFD600\] svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+.dark .social-proof-card,
+.dark .social-proof-card :where(*) {
+  color: var(--foreground) !important;
+}
+
+.dark .social-proof-card :where(.text-muted-foreground) {
+  color: var(--muted-foreground) !important;
+}
+
+.social-proof-section {
+  background: #FFD600;
+}
+
+.dark .social-proof-section .social-proof-card .social-proof-quote,
+.dark .social-proof-section .social-proof-card .social-proof-name {
+  color: #FFFFFF !important;
+}
+
+.dark .social-proof-section .social-proof-card .social-proof-role {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.dark .brand-logo,
+.dark .brand-logo * {
+  stroke: none !important;
+}
