@@ -71,7 +71,7 @@ export function DocumentPipelineCard({ doc }: { doc: DocumentRow }) {
   const isReady = doc.status === "ready"
 
   return (
-    <div className="border-[2px] border-foreground rounded-xl bg-card p-4 shadow-[3px_3px_0px_black] flex flex-col gap-3">
+    <div className="border border-white/10 rounded-xl bg-card p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <FileText className="w-5 h-5 shrink-0 mt-0.5 text-foreground/70" />

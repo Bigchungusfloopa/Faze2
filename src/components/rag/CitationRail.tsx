@@ -23,7 +23,7 @@ export function CitationRail({
         <div
           key={s.marker}
           id={`source-${s.marker}`}
-          className={`border-[2px] border-foreground rounded-lg bg-card p-2.5 text-xs transition-colors ${
+          className={`border border-white/10 rounded-lg bg-card p-2.5 text-xs transition-colors ${
             activeMarker === s.marker ? "bg-primary/10" : ""
           }`}
         >

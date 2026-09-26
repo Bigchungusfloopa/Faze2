@@ -74,10 +74,10 @@ export function WorkspaceSwitcher({
   return (
     <>
       <Select value={scope.workspaceId ?? PERSONAL_VALUE} onValueChange={handleSelect}>
-        <SelectTrigger className="w-[220px] border-[2px] border-foreground shadow-[2px_2px_0px_black] rounded-[0.5rem] font-bold text-sm bg-card">
+        <SelectTrigger className="w-[220px] border border-white/10 rounded-[0.5rem] font-bold text-sm bg-card">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="border-[2px] border-foreground rounded-[0.75rem]">
+        <SelectContent className="border border-white/10 rounded-[0.75rem]">
           <SelectItem value={PERSONAL_VALUE} className="font-medium">Personal</SelectItem>
           {workspaces.map((w) => (
             <SelectItem key={w.id} value={w.id} className="font-medium">
@@ -96,7 +96,7 @@ export function WorkspaceSwitcher({
       </Select>
 
       <Dialog open={dialog !== null} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="border-[3px] border-foreground rounded-[1.5rem] shadow-[8px_8px_0px_black]">
+        <DialogContent className="border border-white/10 rounded-[1.5rem]">
           <DialogHeader>
             <DialogTitle className="font-heading font-extrabold text-xl">
               {dialog === "create" ? "Create a workspace" : "Join a workspace"}

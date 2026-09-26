@@ -1,25 +1,20 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Be_Vietnam_Pro, Space_Grotesk } from "next/font/google";
+import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 
-const plusJakartaSans = Plus_Jakarta_Sans({ 
-  subsets: ["latin"], weight: ["700", "800"], variable: "--font-heading" 
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-heading"
 });
 
-const beVietnamPro = Be_Vietnam_Pro({ 
-  subsets: ["latin"], weight: ["400", "500"], variable: "--font-sans" 
-});
-
-const spaceGrotesk = Space_Grotesk({ 
-  subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" 
+const inter = Inter({
+  subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-sans"
 });
 
 export const metadata: Metadata = {
-  title: "MODULUS",
-  description: "Collaborative learning platform",
+  title: "Faze",
+  description: "Document intelligence — upload, ask, get grounded answers with citations.",
 };
 
 export default function RootLayout({
@@ -28,14 +23,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="dark">
       <body
-        className={`${plusJakartaSans.variable} ${beVietnamPro.variable} ${spaceGrotesk.variable} bg-background text-foreground font-sans antialiased`}
+        className={`${spaceGrotesk.variable} ${inter.variable} bg-background text-foreground font-sans antialiased`}
       >
         <ThemeProvider>
           <QueryProvider>
             {children}
-            <ThemeToggle className="fixed bottom-4 right-4 z-[100] md:bottom-6 md:right-6" />
           </QueryProvider>
         </ThemeProvider>
       </body>

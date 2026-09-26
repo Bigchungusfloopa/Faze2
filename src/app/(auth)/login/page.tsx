@@ -47,7 +47,7 @@ export default function LoginPage() {
       setErrorText(error.message)
       setIsLoading(false)
     } else {
-      router.push("/")
+      router.push("/research")
       router.refresh()
     }
   }
@@ -62,10 +62,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-card p-8 rounded-[24px] border-[2px] border-foreground shadow-[4px_4px_0px_black]">
+    <div className="glass-card p-7 rounded-3xl">
       <div className="mb-8">
         <h2 className="font-heading font-bold text-[28px] text-foreground mb-2">Welcome Back</h2>
-        <p className="font-sans text-[16px] text-muted-foreground">Enter your details to access your vault.</p>
+        <p className="font-sans text-[16px] text-muted-foreground">Sign in to query your documents.</p>
       </div>
 
       <div className="space-y-6">
@@ -97,7 +97,7 @@ export default function LoginPage() {
             <span className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-card px-2 font-mono text-muted-foreground/70">OR CONTINUE WITH</span>
+            <span className="bg-[#161618] rounded px-2 font-mono text-muted-foreground/70">OR CONTINUE WITH</span>
           </div>
         </div>
 
@@ -106,7 +106,7 @@ export default function LoginPage() {
             <Label htmlFor="email">Email address</Label>
             <Input 
               id="email" 
-              placeholder="name@college.edu" 
+              placeholder="you@example.com" 
               {...form.register("email")}
               className={form.formState.errors.email ? "border-[#FF3B30]" : ""}
             />
@@ -143,7 +143,7 @@ export default function LoginPage() {
           </div>
 
           {errorText && (
-            <div className="bg-[#FF3B30] text-white p-3 rounded-[12px] text-[14px] font-sans border-[2px] border-foreground">
+            <div className="bg-[#FF3B30] text-white p-3 rounded-[12px] text-[14px] font-sans">
               {errorText}
             </div>
           )}

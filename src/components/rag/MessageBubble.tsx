@@ -52,7 +52,7 @@ export function MessageBubble({
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-xl border-[2px] border-foreground bg-primary text-primary-foreground px-3 py-2 text-sm shadow-[2px_2px_0px_black]">
+        <div className="max-w-[80%] rounded-xl border border-white/10 bg-primary text-primary-foreground px-3 py-2 text-sm">
           {message.text}
         </div>
       </div>
@@ -61,7 +61,7 @@ export function MessageBubble({
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-xl border-[2px] border-foreground bg-card px-3 py-2 text-sm shadow-[2px_2px_0px_black] flex flex-col gap-2">
+      <div className="max-w-[85%] rounded-xl border border-white/10 bg-card px-3 py-2 text-sm flex flex-col gap-2">
         {message.stage && (
           <p className="text-xs text-muted-foreground italic animate-pulse">
             {STAGE_LABELS[message.stage] ?? message.stage}

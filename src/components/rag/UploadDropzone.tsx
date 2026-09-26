@@ -89,7 +89,7 @@ export function UploadDropzone({ workspaceId }: { workspaceId?: string }) {
   return (
     <div
       className={cn(
-        "border-[2px] border-dashed border-foreground rounded-xl p-8 flex flex-col items-center gap-3 text-center cursor-pointer transition-colors",
+        "border border-dashed border-white/20 bg-white/[0.03] rounded-2xl p-8 flex flex-col items-center gap-3 text-center cursor-pointer transition-colors",
         isDragging ? "bg-primary/10 border-solid" : "bg-card hover:bg-muted/40"
       )}
       onClick={() => inputRef.current?.click()}
